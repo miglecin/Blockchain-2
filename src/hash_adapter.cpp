@@ -1,14 +1,13 @@
 #include "hash_adapter.h"
-#include "my_hash/hash.h" 
 
 std::string HashAdapter::hash_bytes(const std::vector<uint8_t>& bytes) {
     std::string msg(bytes.begin(), bytes.end());
     auto salt = make_salt(msg);
 
-    std::vector<uint8_t> data;
+    std::vector<char> data;
     data.reserve(salt.size() + bytes.size());
-    data.insert(data.end(), salt.begin(), salt.end());
-    data.insert(data.end(), bytes.begin(), bytes.end());
+    for (uint8_t b : salt)  data.push_back(static_cast<char>(b));
+    for (uint8_t b : bytes) data.push_back(static_cast<char>(b));
 
     uint8_t first_b = bytes.empty() ? 0 : bytes.front();
     uint8_t last_b  = bytes.empty() ? 0 : bytes.back();

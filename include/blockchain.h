@@ -7,7 +7,6 @@
 class Blockchain {
 public:
     explicit Blockchain(std::string diff_prefix = "000");
-    void init_users(size_t n_users);
     void init_transactions(size_t n_txs);
     bool mine_next_block(size_t block_size);
 
@@ -20,7 +19,6 @@ private:
     std::string serialize_header(const BlockHeader& h) const;
     std::string hash_header(const BlockHeader& h) const;
     bool valid_pow(const std::string& hex) const;
-    void apply_block_effects(const Block& b);
 
 private:
     //std::vector<User> users_;             
