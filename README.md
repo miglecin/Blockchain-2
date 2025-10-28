@@ -19,9 +19,9 @@ Naudojamas **Proof-of-Work** (PoW) principas – blokas laikomas galiojančiu, k
 
 ---
 
-## 🧩 Programos logika
+##  Programos logika
 
-### 1️⃣ Genesis blokas (pirmas)
+### 1. Genesis blokas (pirmas)
 
 Konstruktorius sukuria pirmaji **genesis bloką**:
 
@@ -36,7 +36,7 @@ Blokas įterpiamas į grandinę (`chain_`).
 
 ---
 
-### 2️⃣ Transakcijos (`init_transactions`)
+### 2. Transakcijos (`init_transactions`)
 
 Sugeneruojama nurodytas kiekis transakcijų (pvz. **10 000**):
 
@@ -55,7 +55,7 @@ Visi įrašai saugomi į `mempool_`, kuris veikia kaip laikinas sąrašas transa
 
 ---
 
-### 3️⃣ Transakcijų hash (`calc_txs_hash`)
+### 3. Transakcijų hash (`calc_txs_hash`)
 
 Kai ruošiam naują bloką:
 - Paimamos visos transakcijos, kurios bus tame bloke.
@@ -66,7 +66,7 @@ Kai ruošiam naują bloką:
 
 ---
 
-### 4️⃣ Bloko antraštės paruošimas (`serialize_header`)
+### 4. Bloko antraštės paruošimas (`serialize_header`)
 
 Bloko antraštė paverčiama į vieną tekstinę eilutę:
 ```bash
@@ -82,7 +82,7 @@ prev_block_hash | timestamp | version | txs_hash | nonce | difficulty
 
 ---
 
-### 5️⃣ Proof-of-Work (`mine_next_block`)
+### 5. Proof-of-Work (`mine_next_block`)
 
 Tai pagrindinis kasimo ciklas:
 
@@ -105,7 +105,7 @@ Tai pagrindinis kasimo ciklas:
 
 ---
 
-### 6️⃣ Blokas pridedamas prie grandinės
+### 6. Blokas pridedamas prie grandinės
 
 - Sukuriamas naujas `Block` objektas.  
 - Priskiriami laukai: `header`, `txs`, `block_hash`.  
@@ -136,7 +136,7 @@ Baigta. Iškasta blokų: 100
 ```
 ---
 
-## 🧠 Hash funkcija
+##  Hash funkcija
 
 Naudoja **bubble sort** algoritmą, kuris kiekvieno sukeitimo metu atnaujina 256-bit sėklą (`seed`).  
 Kiekvienas baitų sukeitimas keičia hash, todėl net maža įvesties permaina duoda visiškai kitokį rezultatą.
