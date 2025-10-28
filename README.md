@@ -47,6 +47,10 @@ Konstruktorius sukuria pirmaji **genesis bloką**:
 - `block_hash` = hash nuo header (nekasamas, nes pirmas)  
 
 Blokas įterpiamas į grandinę (`chain_`).
+**Konsolės išvestis:**
+```bash
+[chain] genesis block created (height=0)
+```
 
 ---
 
@@ -64,7 +68,8 @@ Visi įrašai saugomi į `mempool_`, kuris veikia kaip laikinas sąrašas transa
 
 **Konsolės išvestis:**
 ```bash
-[mempool] Sukurta 10000 transakcijų
+[mempool] generated 1000 / 10000 txs
+[mempool] total 10000 transactions ready for mining
 ```
 
 ---
@@ -108,13 +113,10 @@ Tai pagrindinis kasimo ciklas:
    - tikrina ar hash prasideda `difficulty` (pvz. `"000"`).  
 4. Kai randamas tinkamas hash – blokas laikomas iškastas.
 
-**Progreso išvedimas (kas ~262k bandymų):**
+**Kasimo progresas:**
 ```bash
 [mining] nonce=381245 hash=000f1a4b32c9a01d...
-```
-**Kai randa:**
-```bash
-[mined] nonce=381245 hash=000f1a4b32c9a01d...
+[mined]  block found! nonce=381245 hash=000f1a4b32c9a01d...
 ```
 
 ---
@@ -122,10 +124,14 @@ Tai pagrindinis kasimo ciklas:
 ### 6. Blokas pridedamas prie grandinės
 
 - Sukuriamas naujas `Block` objektas.  
-- Priskiriami laukai: `header`, `txs`, `block_hash`.  
 - Įterpiamas į `chain_`.  
 - Transakcijos ištrinamos iš `mempool_` (jos jau bloke).  
 
+**Konsolės išvestis:**
+```bash
+[block] applied: 100 txs added to block #42
+[chain] height=43 mempool_left=5700
+```
 ---
 
 ### Block Explorer stiliaus išvedimas
