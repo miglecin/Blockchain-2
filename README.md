@@ -162,12 +162,12 @@ Tai leidžia aiškiai pamatyti:
 
 ### Interaktyvus režimas (užklausos)
 
-*help*	- Parodo visų komandų sąrašą
-*getblock <n>*	- Parodo konkretų bloką (0 = genesis)
-*gettx <txid>*	- Parodo transakciją pagal ID
-*latest [n]*	- Parodo paskutinius n blokus
-*mempool [n]*	- Parodo pirmas n transakcijų iš mempool
-*exit* - Išeina iš programos
+- *help*	- Parodo visų komandų sąrašą
+- *getblock <n>*	- Parodo konkretų bloką (0 = genesis)
+- *gettx <txid>*	- Parodo transakciją pagal ID
+- *latest [n]*	- Parodo paskutinius n blokus
+- *mempool [n]*	- Parodo pirmas n transakcijų iš mempool
+- *exit* - Išeina iš programos
 
 ```bash
 > getblock 5
