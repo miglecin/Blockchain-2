@@ -3,7 +3,8 @@
 #include "utils.h"
 #include <algorithm>
 #include <iostream>
-// pretty print helper (block explorer style)
+
+// block explorer style printinimui
 static void print_block_pretty(const Block& b, size_t height) {
     std::cout << "\n========================================\n";
     std::cout << " Block #" << height << "\n";
@@ -17,7 +18,7 @@ static void print_block_pretty(const Block& b, size_t height) {
     std::cout << " txs_hash:        " << b.header.txs_hash << "\n";
     std::cout << "----------------------------------------\n";
 
-    // show first few transactions
+    //parodau pirmas kelias transakcijas
     size_t preview_count = std::min((size_t)5, b.txs.size());
     for (size_t i = 0; i < preview_count; i++) {
         const Transaction& tx = b.txs[i];
@@ -36,6 +37,19 @@ static void print_block_pretty(const Block& b, size_t height) {
     std::cout << "========================================\n\n";
 }
 
+//base reward amount (50 BTC kaip ankstvam bitcoine)
+static const uint64_t BASE_BLOCK_REWARD = 50;
+
+// helper: compute current block reward depending on height
+// simple halving-style rule: reward halves every 50 blocks
+static uint64_t current_block_reward(size_t height) {
+    size_t era = height / 50; // every 50 blocks, new "era"
+    // shift right by 'era' halves 50 -> 25 -> 12 -> ...
+    uint64_t reward = BASE_BLOCK_REWARD >> era;
+    if (reward == 0) reward = 1; // never drop below 1 (for demo)
+    return reward;
+}
+
 Blockchain::Blockchain(std::string diff_prefix)
   : difficulty_(std::move(diff_prefix)) {
     //GENESIS
@@ -47,6 +61,7 @@ Blockchain::Blockchain(std::string diff_prefix)
     genesis.header.nonce = 0;
     genesis.block_hash = hash_header(genesis.header); //suskaičiuoji hash’ą nuo header (be kasimo, nes genesis paprastai nekasamas)
     chain_.push_back(std::move(genesis)); //istatau i chaina
+    std::cout << "[chain] genesis block created (height=0)\n";
 }
 
 std::string Blockchain::calc_tx_id(const Transaction& t) const {
@@ -76,7 +91,8 @@ void Blockchain::init_transactions(size_t n_txs) {
         tx.tx_id = HashAdapter::hash_string(text);
 
         mempool_.push_back(tx); //idedam i mempool sarasa
-        //optional progress print for big numbers like 10000
+
+        //progress printing for large mempools (ex: 10000 tx)
         if ((i + 1) % 1000 == 0) {
             std::cout << "[mempool] generated " << (i + 1)<< " / " << n_txs << " txs\n";
         }
@@ -109,20 +125,20 @@ std::string Blockchain::hash_header(const BlockHeader& h) const {
 }
 
 bool Blockchain::valid_pow(const std::string& hex) const {
-    //Patikrina, ar hash prasideda tavo sunkumo prefiksu (pvz., "000")
+    //Patikrina, ar hash prasideda tavo sunkumo prefiksu (pvz "000")
     return hex.rfind(difficulty_, 0) == 0; 
     //PoW TAISYKLE
 }
 
-// allow querying a block by height (0 = genesis)
+//get a block by its height (0 = genesis)
 const Block* Blockchain::get_block_by_height(size_t height) const {
     if (height >= chain_.size()) return nullptr;
     return &chain_[height];
 }
 
-// allow querying a tx by its id (search chain, then mempool)
+// find a transaction by tx_id (search mined blocks, then mempool)
 const Transaction* Blockchain::get_transaction_by_id(const std::string& tx_id) const {
-    // search in already mined blocks
+    //iesko chaine pirmiausia
     for (const auto& b : chain_) {
         for (const auto& tx : b.txs) {
             if (tx.tx_id == tx_id) {
@@ -130,7 +146,7 @@ const Transaction* Blockchain::get_transaction_by_id(const std::string& tx_id) c
             }
         }
     }
-    // search in mempool
+    //iesko mempoole
     for (const auto& tx : mempool_) {
         if (tx.tx_id == tx_id) {
             return &tx;
@@ -147,12 +163,12 @@ void Blockchain::print_transaction(const Transaction& tx) const {
     std::cout << " amount:   " << tx.amount << "\n";
     std::cout << " nonce:    " << tx.nonce << "\n";
 }
-// pretty print a block (public wrapper so main.cpp can call it)
+// pretty print a block 
 void Blockchain::print_block(const Block& b, size_t height) const {
     print_block_pretty(b, height);
 }
 
-
+//---------------------------------
 //KASIMAS PoW
 bool Blockchain::mine_next_block(size_t block_size) {
     //jei mempool tuscias - nieko nekasiam
@@ -165,6 +181,26 @@ bool Blockchain::mine_next_block(size_t block_size) {
         batch.push_back(mempool_.front());
         mempool_.pop_front();
     }
+
+    //coinbase transaction (block reward)
+     Transaction reward_tx;
+     reward_tx.sender   = "Block_Reward"; //specialus naudotojas – centrinis bankas
+     reward_tx.receiver = "miner_0"; //mineris, KURIS GAUNA REWARDA
+     reward_tx.amount   = current_block_reward(chain_.size()); //dinaminis rewardas
+     reward_tx.nonce    = now_ts();  //unikalus
+     reward_tx.tx_id    = HashAdapter::hash_string(
+                                std::string("COINBASE|") +
+                                reward_tx.receiver + "|" +
+                                std::to_string(reward_tx.amount) + "|" +
+                                std::to_string(reward_tx.nonce) );
+
+     //parodau rewarda konsolej
+    std::cout << "[reward] " << reward_tx.amount
+              << " coins issued by Block_Reward to "
+              << reward_tx.receiver << "\n";
+
+     batch.insert(batch.begin(), reward_tx);//idedu rewarda i pirma transakcija siame bloke
+
     // log: starting to build a new block with N txs
     std::cout << "[block] forming new block with "
               << batch.size() << " txs\n";
@@ -184,7 +220,7 @@ bool Blockchain::mine_next_block(size_t block_size) {
         ++h.nonce;
         bh = hash_header(h); //hash nuo header
 
-        //kas tam tikra kieki bandymu parodom progresa
+        //kas tam tikra kieki (~260k) bandymu parodom progresa
         if ((++iters & 0x3FFFF) == 0) {
             std::cout << "[mining] nonce=" << h.nonce << " hash=" << bh.substr(0,16) << "...\r" << std::flush;
         }
@@ -196,7 +232,8 @@ bool Blockchain::mine_next_block(size_t block_size) {
     Block b; b.header = h; b.txs = std::move(batch); b.block_hash = bh;
     chain_.push_back(std::move(b));
 
-    // 5) summary: how many tx got included, and current chain height
+    // 5) summary:  after this block is added 
+    //how many tx got included, and current chain height
     std::cout << "[block] applied: " << chain_.back().txs.size()
               << " txs added to block #"
               << (chain_.size() - 1)
