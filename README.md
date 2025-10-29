@@ -74,31 +74,47 @@ Visi įrašai saugomi į `mempool_`, kuris veikia kaip laikinas sąrašas transa
 
 ---
 
-### 3. Transakcijų hash (`calc_txs_hash`)
+### 3. Coinbase / Block Reward transakcija
+
+Kiekviename naujame iškastame bloke pirmoji transakcija yra speciali transakcija, vadinama block reward (arba „coinbase“ Bitcoin pasaulyje).
+
+Ji atrodo taip:
+
+```bash
+tx[0]: Block_Reward -> miner_0 | amount=25 | nonce=1761732025 | id=a4ed48d59d39745e...
+```
+
+Svarbu:
+
+- ši coinbase transakcija nėra paimta iš mempool, ji sukuriama automatiškai.
+- ji įdedama kaip tx[0] į bloką prieš visas normalias transakcijas.
+- ji yra naujų pinigų emisija (taip Bitcoin atsiranda nauji BTC).
+
+Reward dydis nėra visada vienodas. Projekte yra realizuotas paprastas „halving“:
+
+- bazinis atlygis yra 50,
+- kas 50 blokų jis sumažinamas per pusę (50 → 25 → 12 → ...),
+- niekada nenukrenta žemiau 1.
+
+Tai imituoja tikrą Bitcoin ekonomiką, kur kas 4 metus vyksta „halving“.
+
+### 4. Bloko formavimas
 
 Kai ruošiam naują bloką:
-- Paimamos visos transakcijos, kurios bus tame bloke.
-- Jų `tx_id` sujungiami į vieną ilgą eilutę.
-- Tam tekstui apskaičiuojamas hash (vėl naudojant mano hash funkciją).
 
-**Rezultatas:** `txs_hash` įdedamas į bloko header.
+1. Iš mempool_ paimame block_size transakcijų (pvz. 100).
+2. Pridedame viršuje tx[0] – coinbase transakciją (reward kasėjui).
+3. Sukuriame BlockHeader, kuriame yra:
+  - prev_block_hash (nuoroda į praeitą bloką),
+  - timestamp,
+  - difficulty,
+  - txs_hash (hash, gautas iš visų transakcijų ID, įskaitant coinbase),
+  - nonce (pradžioje 0).
 
----
-
-### 4. Bloko antraštės paruošimas (`serialize_header`)
-
-Bloko antraštė paverčiama į vieną tekstinę eilutę:
+**Konsolėje:** 
 ```bash
-prev_block_hash | timestamp | version | txs_hash | nonce | difficulty
+[block] forming new block with 101 txs
 ```
-
-**Pvz.:**
-```bash
-0000....0000|1730139065|v0.1|abc123ff9d...|84521|000
-```
-
-Ši eilutė hash’uojama, kad gautume `block_hash`.
-
 ---
 
 ### 5. Proof-of-Work (`mine_next_block`)
@@ -138,22 +154,22 @@ Tai pagrindinis kasimo ciklas:
 Po kiekvieno sėkmingo kasimo išvedama bloko informacija:
 ```bash
 ========================================
- Block #100
+ Block #88
 ----------------------------------------
- block_hash:      000c93d53e2b1d80...
- prev_block_hash: 000941ed8790e8ee...
+ block_hash:      00018d3dc0cbd8bbac5bd2fd71c1cb7d4d8fa2884d4ee8aca7d4485025f82a86
+ prev_block_hash: 000e0f5b5563a19563b75767862054a6d7645dc6e272f6dc498816f8777d717d
  difficulty:      000
- nonce:           1127
- timestamp:       1730140123
- txs_in_block:    100
- txs_hash:        9a3bf12c7d...
+ nonce:           6167
+ timestamp:       1761732025
+ txs_in_block:    101
+ txs_hash:        8b393c123103e8fb25713d27d2905c0e502ae9e4f0d822bfd188b3abfde15210
 ----------------------------------------
- tx[0]: user_0 -> user_1 | amount=69 | nonce=9900 | id=8b018307c9bc6f45...
- tx[1]: user_1 -> user_2 | amount=72 | nonce=9901 | id=d2481fdd5d313e96...
- tx[2]: user_2 -> user_3 | amount=31 | nonce=9902 | id=4f67b772add5dca8...
- tx[3]: user_3 -> user_4 | amount=22 | nonce=9903 | id=4c81f2e6735a8605...
- tx[4]: user_4 -> user_5 | amount=36 | nonce=9904 | id=aab44ee5b413a846...
- ... (95 more txs not shown)
+ tx[0]: Block_Reward -> miner_0 | amount=25 | nonce=1761732025 | id=a4ed48d59d39745e...
+ tx[1]: user_0 -> user_1 | amount=37 | nonce=8700 | id=f80262dc5b37d4b7...
+ tx[2]: user_1 -> user_2 | amount=4  | nonce=8701 | id=c355b1db85f8fa34...
+ tx[3]: user_2 -> user_3 | amount=100 | nonce=8702 | id=06c1339109ae726b...
+ tx[4]: user_3 -> user_4 | amount=25 | nonce=8703 | id=56089f16777fee2b...
+ ... (96 more txs not shown)
 ========================================
 
 ```
@@ -162,7 +178,8 @@ Tai leidžia aiškiai pamatyti:
 1. Kiek transakcijų buvo bloke,
 2. Kas buvo siuntėjai/gavėjai,
 3. Koks nonce,
-4. Koks PoW rezultatas (block_hash).
+4. Koks PoW rezultatas (block_hash),
+5. Kokia block reward transakcija (kasėjas gauna pinigus).
 
 ----
 
@@ -211,33 +228,73 @@ Kiekvienas baitų sukeitimas keičia hash, todėl net maža įvesties permaina d
 
 ### Konsolės išvestis (pvz.)
 ```bash
-[config]  Txs=10000  BlockSize=100  Diff="000"
-[start]   generuoju transakcijas...
+./blockchain 10000 100 000
+```
+```bash
+Txs=10000  BlockSize=100  Diff="000"
+[start] generuoju transakcijas...
+[mempool] generated 1000 / 10000 txs
+[mempool] generated 2000 / 10000 txs
+[mempool] generated 3000 / 10000 txs
+[mempool] generated 4000 / 10000 txs
+[mempool] generated 5000 / 10000 txs
+[mempool] generated 6000 / 10000 txs
+[mempool] generated 7000 / 10000 txs
+[mempool] generated 8000 / 10000 txs
+[mempool] generated 9000 / 10000 txs
 [mempool] total 10000 transactions ready for mining
-[start]   pradedu kasimą (Proof-of-Work)...
+[start] pradedu kasimą (Proof-of-Work)...
+```
 
-[mined] block found! nonce=1127 hash=000c93d53e2b1d80...
-[block] applied: 100 txs added to block #101
-[chain] height=102 mempool_left=0
+```bash
+[reward] 50 coins issued by Block_Reward to miner_0
+[block] forming new block with 101 txs
+[mining] nonce=262144 hash=000a32f89c1bd2ff...
+[mined] block found! nonce=268101 hash=000a32f89c1bd2ff...
+[block] applied: 101 txs added to block #1
+[chain] height=2 mempool_left=9899
+```
+
+```bash
 ========================================
- Block #101
+ Block #1
 ----------------------------------------
- block_hash:      000c93d53e2b1d80...
- prev_block_hash: 000941ed8790e8ee...
+ block_hash:      000a32f89c1bd2ffb71a410b64e8e5b79e6de2100b9a76db02bce33ce45a9e40
+ prev_block_hash: 0000000000000000000000000000000000000000000000000000000000000000
  difficulty:      000
- nonce:           1127
- timestamp:       1730140123
- txs_in_block:    100
- txs_hash:        9a3bf12c7d...
+ nonce:           268101
+ timestamp:       1761731622
+ txs_in_block:    101
+ txs_hash:        8b393c123103e8fb25713d27d2905c0e502ae9e4f0d822bfd188b3abfde15210
 ----------------------------------------
- tx[0]: user_0 -> user_1 | amount=69 | nonce=9900 | id=8b018307c9bc6f45...
- ... (95 more txs not shown)
+ tx[0]: Block_Reward -> miner_0 | amount=50 | nonce=1761731622 | id=f37ac314e6c6a1a1...
+ tx[1]: user_0 -> user_1 | amount=37 | nonce=0 | id=fa5bd67b96a40c57...
+ tx[2]: user_1 -> user_2 | amount=91 | nonce=1 | id=2120db97a8c63e88...
+ tx[3]: user_2 -> user_3 | amount=12 | nonce=2 | id=07fdac8f9f32a924...
+ tx[4]: user_3 -> user_4 | amount=84 | nonce=3 | id=16be51ed3f07c9d2...
+ ... (96 more txs not shown)
 ========================================
+```
+.....
+
+```bash
 [done] Baigta. Iškasta blokų: 100
 ```
+
+---
+
+## Kodėl reikalingas block reward?
+
+- Proof-of-Work reikalauja darbo (nonce paieškos).
+- Kasėjas turi gauti užmokestį už šitą darbą.
+- Bloke automatiškai sugeneruojama coinbase transakcija:
+- Block_Reward -> miner_X | amount=...
+- Taip į tinklą „įleidžiami“ nauji pinigai.
+- Reward suma mažėja kas 50 blokų (halving mechanizmas), kaip Bitcoin
 
 ---
 
 ## AI pagalba
 - Konsolės log'ų formavimui (aiškesni žingsniai).
 - „block explorer“ peržiūros išvedimo idėjai.
+- coinbase/block reward idėjai ir halving logikai.
