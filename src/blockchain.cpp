@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <iostream>
 
-// block explorer style printinimui
+//block explorer style printinimui
 static void print_block_pretty(const Block& b, size_t height) {
     std::cout << "\n========================================\n";
     std::cout << " Block #" << height << "\n";
@@ -40,13 +40,13 @@ static void print_block_pretty(const Block& b, size_t height) {
 //base reward amount (50 BTC kaip ankstvam bitcoine)
 static const uint64_t BASE_BLOCK_REWARD = 50;
 
-// helper: compute current block reward depending on height
-// simple halving-style rule: reward halves every 50 blocks
+//pagalbine funkcija: apskaiciuoja dabartini bloko atlygi pagal auksti
+//paprasta "halving" taisykle: kas 50 bloku atlygis sumazeja per puse
 static uint64_t current_block_reward(size_t height) {
     size_t era = height / 50; // every 50 blocks, new "era"
-    // shift right by 'era' halves 50 -> 25 -> 12 -> ...
+    //bitinis poslinkis i desine sumazina atlygi: 50 -> 25 -> 12 -> ...
     uint64_t reward = BASE_BLOCK_REWARD >> era;
-    if (reward == 0) reward = 1; // never drop below 1 (for demo)
+    if (reward == 0) reward = 1; //demo versijai atlygis niekada nenukrenta zemiau 1
     return reward;
 }
 
@@ -92,7 +92,7 @@ void Blockchain::init_transactions(size_t n_txs) {
 
         mempool_.push_back(tx); //idedam i mempool sarasa
 
-        //progress printing for large mempools (ex: 10000 tx)
+        //spausdina progreso zinutes kai mempool labai didelis (pvz. 10000 transakciju)
         if ((i + 1) % 1000 == 0) {
             std::cout << "[mempool] generated " << (i + 1)<< " / " << n_txs << " txs\n";
         }
@@ -130,13 +130,13 @@ bool Blockchain::valid_pow(const std::string& hex) const {
     //PoW TAISYKLE
 }
 
-//get a block by its height (0 = genesis)
+//grazina bloka pagal jo auksti (0 = genesis blokas)
 const Block* Blockchain::get_block_by_height(size_t height) const {
     if (height >= chain_.size()) return nullptr;
     return &chain_[height];
 }
 
-// find a transaction by tx_id (search mined blocks, then mempool)
+//iesko transakcijos pagal jos tx_id (search mined blocks, then mempool)
 const Transaction* Blockchain::get_transaction_by_id(const std::string& tx_id) const {
     //iesko chaine pirmiausia
     for (const auto& b : chain_) {
@@ -232,8 +232,9 @@ bool Blockchain::mine_next_block(size_t block_size) {
     Block b; b.header = h; b.txs = std::move(batch); b.block_hash = bh;
     chain_.push_back(std::move(b));
 
-    // 5) summary:  after this block is added 
-    //how many tx got included, and current chain height
+    // 5) santrauka: po to kai blokas pridedamas
+    // parodome kiek transakciju buvo ideta i si bloka
+    // ir koks dabar yra grandines aukstis (kiek bloku is viso)
     std::cout << "[block] applied: " << chain_.back().txs.size()
               << " txs added to block #"
               << (chain_.size() - 1)
@@ -244,7 +245,7 @@ bool Blockchain::mine_next_block(size_t block_size) {
               << "\n";
 
     // 6) pretty print full block info (explorer-style)
-    // we call it with height = chain_.size() - 1
+    // kvieciame su aukstis = chain_.size() - 1 (paskutinis blokas)
     print_block_pretty(chain_.back(), chain_.size() - 1);
 
     return true;
