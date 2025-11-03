@@ -89,7 +89,10 @@ int main(int argc, char** argv) {
                 << "  getblock <height>   - show block by height (0 = genesis)\n"
                 << "  gettx <txid>        - show transaction by id\n"
                 << "  latest [n]          - show last n blocks (default 5)\n"
-                << "  mempool [n]         - show first n tx from mempool (default 5)\n";
+                << "  mempool [n]         - show first n tx from mempool (default 5)\n"
+                << "  balance <pubkey>    - rodo balansa pagal pubkey (miner_0 irgi galioja)\n"
+                << "  user <i>            - rodo i-to naudotojo info (name/pubkey/balance)\n";
+
             continue;
         }
 
@@ -149,6 +152,26 @@ int main(int argc, char** argv) {
             }
             continue;
         }
+
+        if (cmd == "balance") {
+            std::string pk;
+            if (!(iss >> pk)) { std::cout << "usage: balance <pubkey>\n"; continue; }
+            uint64_t bal = 0;
+            if (bc.get_balance(pk, bal)) {
+                std::cout << "balance(" << pk.substr(0,16) << "...) = " << bal << "\n";
+            } else {
+                std::cout << "not found: " << pk << "\n";
+            }
+            continue;
+            }
+
+        if (cmd == "user") {
+            size_t i;
+            if (!(iss >> i)) { std::cout << "usage: user <index>\n"; continue; }
+            bc.print_user(i);
+            continue;
+        }
+
 
         std::cout << "Unknown command: " << cmd
                   << " (type 'help')\n";
