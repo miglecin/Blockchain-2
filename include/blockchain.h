@@ -47,6 +47,15 @@ public:
     // rasti transakcija pagal jos ID (hash) – iesko tiek chain'e, tiek mempool'e
     const Transaction* get_transaction_by_id(const std::string& tx_id) const;
 
+    // prieiga (read-only)
+    const std::vector<User>& users() const { return users_; }
+
+    // gauti balansa pagal pubkey; grazina true jei rado
+    bool get_balance(const std::string& pubkey, uint64_t& out) const;
+
+    // patogumui: atspausdinti naudotoja pagal indeksa
+    void print_user(size_t idx) const;
+
     // graziai isspausdina transakcija / bloka (block explorer stilius)
     void print_transaction(const Transaction& tx) const;
     void print_block(const Block& b, size_t height) const;
