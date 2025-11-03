@@ -37,11 +37,10 @@ static void print_block_pretty(const Block& b, size_t height) {
     std::cout << "========================================\n\n";
 }
 
-//base reward amount (50 BTC kaip ankstvam bitcoine)
+//bazinis bloko atlygis (50)
 static const uint64_t BASE_BLOCK_REWARD = 50;
 
-//pagalbine funkcija: apskaiciuoja dabartini bloko atlygi pagal auksti
-//paprasta "halving" taisykle: kas 50 bloku atlygis sumazeja per puse
+//paprasta halving taisykle kas 50 bloku
 static uint64_t current_block_reward(size_t height) {
     size_t era = height / 50; // every 50 blocks, new "era"
     //bitinis poslinkis i desine sumazina atlygi: 50 -> 25 -> 12 -> ...
@@ -52,7 +51,7 @@ static uint64_t current_block_reward(size_t height) {
 
 Blockchain::Blockchain(std::string diff_prefix)
   : difficulty_(std::move(diff_prefix)) {
-    //GENESIS
+    //GENESIS (nekasamas)
     Block genesis;
     genesis.header.prev_block_hash = std::string(64, '0');
     genesis.header.timestamp = now_ts();
@@ -64,48 +63,76 @@ Blockchain::Blockchain(std::string diff_prefix)
     std::cout << "[chain] genesis block created (height=0)\n";
 }
 
+// v0.2: vartotoju generavimas su balansais
+void Blockchain::init_users(size_t n_users) {
+    users_.clear();
+    balances_.clear();
+    users_.reserve(n_users);
+    for (size_t i = 0; i < n_users; ++i) {
+        User u;
+        u.name = "user_" + std::to_string(i);
+        u.pubkey = HashAdapter::hash_string(u.name);
+        u.balance = rand_u64(100, 1'000'000);
+        users_.push_back(u);
+        balances_[u.pubkey] = u.balance;
+    }
+    std::cout << "[users] generated " << users_.size() << " users\n";
+}
+
 std::string Blockchain::calc_tx_id(const Transaction& t) const {
     //sudedu i viena stringa
     std::string payload = t.sender + "|" + t.receiver + "|" + std::to_string(t.amount) + "|" + std::to_string(t.nonce); 
     return HashAdapter::hash_string(payload); //pritaikau savo hash
 }
 
-//TRANSAKCIJU GENERAVIMAS
+//TRANSAKCIJU GENERAVIMAS is users v0.2
 void Blockchain::init_transactions(size_t n_txs) {
     mempool_.clear(); //isvalom mempool (jei kazkas buvo anksciau)
+    if (users_.empty()) {
+        std::cout << "[warn] users are empty, calling init_users(1000)\n";
+        init_users(1000);
+    }
     
     //sukuriam n_txs transakciju
-    for (size_t i = 0; i < n_txs; ++i) {
+   for (size_t i = 0; i < n_txs; ++i) {
         Transaction tx;
+        size_t sidx = i % users_.size();
+        size_t ridx = (i + 1) % users_.size();
+        tx.sender   = users_[sidx].pubkey;
+        tx.receiver = users_[ridx].pubkey;
+        tx.amount   = rand_u64(1, 100);
+        tx.nonce    = i;
+        tx.tx_id    = calc_tx_id(tx);
+        mempool_.push_back(tx);
 
-        // aprasti user siuntejas ir gavejas
-        tx.sender   = "user_" + std::to_string(i % 100);
-        tx.receiver = "user_" + std::to_string((i+1) % 100);
-        
-        //pinigu kiekis 1–100
-        tx.amount = rand_u64(1, 100);
-        //nonce tiesiog eiles numeris (kad kiekviena butu unikali)
-        tx.nonce = i;
-        //sukuriam hash kaip transakcijos ID
-        std::string text = tx.sender + "|" + tx.receiver + "|" +std::to_string(tx.amount) + "|" +std::to_string(tx.nonce);
-        tx.tx_id = HashAdapter::hash_string(text);
-
-        mempool_.push_back(tx); //idedam i mempool sarasa
-
-        //spausdina progreso zinutes kai mempool labai didelis (pvz. 10000 transakciju)
         if ((i + 1) % 1000 == 0) {
-            std::cout << "[mempool] generated " << (i + 1)<< " / " << n_txs << " txs\n";
+            std::cout << "[mempool] generated " << (i + 1) << " / " << n_txs << " txs\n";
         }
     }
-     std::cout << "[mempool] total " << mempool_.size()
-              << " transactions ready for mining\n";
+    std::cout << "[mempool] total " << mempool_.size() << " transactions ready for mining\n";
 }
 
+//concat hash (palikta suderinamumui; v0.2 naudos merkle_root)
 std::string Blockchain::calc_txs_hash(const std::vector<Transaction>& txs) const {
     //sujungiu visų tx_id į vieną ilgą stringą, tada per HashAdapter
     std::string concat; concat.reserve(txs.size() * 64);
     for (auto& t : txs) concat += t.tx_id;
     return HashAdapter::hash_string(concat);
+}
+
+//merkle root is tx_id
+std::string Blockchain::merkle_root(std::vector<std::string> leaves) const {
+    if (leaves.empty()) return HashAdapter::hash_string("");
+    while (leaves.size() > 1) {
+        if (leaves.size() & 1) leaves.push_back(leaves.back());
+        std::vector<std::string> next;
+        next.reserve(leaves.size() / 2);
+        for (size_t i = 0; i < leaves.size(); i += 2) {
+            next.push_back(HashAdapter::hash_string(leaves[i] + leaves[i + 1]));
+        }
+        leaves.swap(next);
+    }
+    return leaves[0];
 }
 
 std::string Blockchain::serialize_header(const BlockHeader& h) const {
@@ -141,16 +168,12 @@ const Transaction* Blockchain::get_transaction_by_id(const std::string& tx_id) c
     //iesko chaine pirmiausia
     for (const auto& b : chain_) {
         for (const auto& tx : b.txs) {
-            if (tx.tx_id == tx_id) {
-                return &tx;
-            }
+            if (tx.tx_id == tx_id) {return &tx;}
         }
     }
     //iesko mempoole
     for (const auto& tx : mempool_) {
-        if (tx.tx_id == tx_id) {
-            return &tx;
-        }
+        if (tx.tx_id == tx_id) {return &tx;}
     }
     return nullptr;
 }
@@ -168,8 +191,105 @@ void Blockchain::print_block(const Block& b, size_t height) const {
     print_block_pretty(b, height);
 }
 
+//pritaikyti balansu busena po sekmingo bloko
+bool Blockchain::apply_block_state(const Block& b) {
+    for (const auto& tx : b.txs) {
+        if (tx.sender == "Block_Reward") {
+            balances_[tx.receiver] += tx.amount;
+            continue;
+        }
+        auto itS = balances_.find(tx.sender);
+        auto itR = balances_.find(tx.receiver);
+        if (itS == balances_.end() || itR == balances_.end()) return false;
+        if (itS->second < tx.amount) return false;
+        itS->second -= tx.amount;
+        itR->second += tx.amount;
+    }
+    return true;
+}
+
+//patikrinti, kad visos tx yra teisingos pries kasima
+bool Blockchain::verify_block_txs(const std::vector<Transaction>& txs) const {
+    // laikina balansu kopija, kad patikrintume nuosekliai
+    std::unordered_map<std::string, uint64_t> tmp = balances_;
+    for (const auto& tx : txs) {
+        if (tx.sender == "Block_Reward") {
+            tmp[tx.receiver] += tx.amount;
+            continue;
+        }
+        // tikrinam tx_id
+        if (tx.tx_id != calc_tx_id(tx)) return false;
+        auto itS = tmp.find(tx.sender);
+        auto itR = tmp.find(tx.receiver);
+        if (itS == tmp.end() || itR == tmp.end()) return false;
+        if (itS->second < tx.amount) return false;
+        itS->second -= tx.amount;
+        itR->second += tx.amount;
+    }
+    return true;
+}
+
+// suformuoja kandidata paemus transakcijas is mempool PRIEKIO, bet nepanaikina mempool
+Candidate Blockchain::build_candidate_from_front(size_t block_size) const {
+    Candidate c;
+    // coinbase pirmoje vietoje
+    Transaction reward_tx;
+    reward_tx.sender   = "Block_Reward";
+    reward_tx.receiver = "miner_0";
+    reward_tx.amount   = current_block_reward(chain_.size());
+    reward_tx.nonce    = now_ts();
+    reward_tx.tx_id    = HashAdapter::hash_string(
+        std::string("COINBASE|") + reward_tx.receiver + "|" +
+        std::to_string(reward_tx.amount) + "|" +
+        std::to_string(reward_tx.nonce)
+    );
+
+    c.txs.push_back(reward_tx);
+
+    // pridekim dar block_size-1 transakciju is mempool priekio (snapshot)
+    size_t taken = 0;
+    for (const auto& tx : mempool_) {
+        if (taken >= block_size - 1) break;
+        c.txs.push_back(tx);
+        ++taken;
+    }
+
+    // uzpildom header be nonce
+    c.header.prev_block_hash = chain_.back().block_hash;
+    c.header.timestamp       = now_ts();
+    c.header.difficulty      = difficulty_;
+    // v0.2: merkle root
+    std::vector<std::string> ids; ids.reserve(c.txs.size());
+    for (auto& t : c.txs) ids.push_back(t.tx_id);
+    c.header.txs_hash        = merkle_root(std::move(ids));
+    c.header.nonce           = 0;
+
+    return c;
+}
+
+// oW su laiko limitu
+bool Blockchain::try_mine_header(BlockHeader& h, std::string& out_hash, uint64_t max_ms) const {
+    using clk = std::chrono::steady_clock;
+    auto start = clk::now();
+    size_t iters = 0;
+    while (true) {
+        ++h.nonce;
+        out_hash = hash_header(h);
+        if (valid_pow(out_hash)) return true;
+
+        if ((++iters & 0x3FFFF) == 0) {
+            std::cout << "[mining] nonce=" << h.nonce
+                      << " hash=" << out_hash.substr(0,16) << "...\r" << std::flush;
+            auto now = clk::now();
+            auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now - start).count();
+            if (ms >= (long long)max_ms) break;
+        }
+    }
+    return false;
+}
+
 //---------------------------------
-//KASIMAS PoW
+//KASIMAS PoW v0.1 (vienas kandidatas be laiko limito)
 bool Blockchain::mine_next_block(size_t block_size) {
     //jei mempool tuscias - nieko nekasiam
     if (mempool_.empty()) return false;
@@ -249,4 +369,68 @@ bool Blockchain::mine_next_block(size_t block_size) {
     print_block_pretty(chain_.back(), chain_.size() - 1);
 
     return true;
+}
+
+
+// v0.2 kasyba: keli kandidatai ir laiko limitas vienai bangai
+bool Blockchain::mine_next_block_v2(size_t block_size, size_t num_candidates, uint64_t max_ms) {
+    if (mempool_.empty()) return false;
+
+    // sugeneruojam kandidatus (naudojam momentini mempool prieki)
+    std::vector<Candidate> cands; cands.reserve(num_candidates);
+    for (size_t i = 0; i < num_candidates; ++i) {
+        cands.push_back(build_candidate_from_front(block_size));
+        // nedidelis variacijos triukas: pakeisti timestamp, kad skirtingi header
+        cands.back().header.timestamp += i;
+    }
+
+    // verifikuojam kiekvieno kandidato tx pries kasyma
+    for (auto it = cands.begin(); it != cands.end(); ) {
+        if (verify_block_txs(it->txs)) ++it;
+        else it = cands.erase(it);
+    }
+    if (cands.empty()) {
+        std::cout << "[block] no valid candidates (verification failed)\n";
+        return false;
+    }
+
+    // bandome kasti kandidatus nuosekliai (emuliuojam daug kasikliu)
+    // pirma sekmingai iskasta uzfiksuojama
+    for (auto& cand : cands) {
+        std::string bh;
+        BlockHeader h = cand.header;
+        bool ok = try_mine_header(h, bh, max_ms);
+        if (!ok) {
+            std::cout << "[mining] candidate timed out (no solution)\n";
+            continue;
+        }
+
+        std::cout << "\n[mined] block found! nonce=" << h.nonce
+                  << " hash=" << bh.substr(0,16) << "...\n";
+
+        // jei radom, suformuojam bloka ir realiai isimam tx is mempool
+        // isimam tik tiek, kiek is tiesu sudarem kandidate
+        // pirma tx yra coinbase, jos mempoole nera
+        size_t need = cand.txs.size() - 1;
+        for (size_t i = 0; i < need && !mempool_.empty(); ++i) {
+            mempool_.pop_front();
+        }
+
+        Block b;
+        b.header = h;
+        b.txs    = std::move(cand.txs);
+        b.block_hash = bh;
+
+        chain_.push_back(std::move(b));
+        if (!apply_block_state(chain_.back())) {
+            std::cout << "[warn] state apply failed\n";
+            return false;
+        }
+
+        print_block_pretty(chain_.back(), chain_.size() - 1);
+        return true;
+    }
+
+    // jei per si cikla nieko neiskaseme, grazinam false, bet kitame cikle vel bandys
+    return false;
 }
