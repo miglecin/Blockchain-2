@@ -12,45 +12,54 @@
 #include <cstdlib>
 
 int main(int argc, char** argv) {
-    //(jei vartotojas nieko neiveda)
-    size_t n_txs   = 10000;    //transakciju kiekis
-    size_t blocksz = 100;      //kiek transakciju viename bloke
-    std::string diff = "000";  //Sunkumas (PoW tikslas)
+    size_t n_txs   = 10000;
+    size_t blocksz = 100;
+    std::string diff = "000";
 
-    //pakeiciam numatytas reiksmes
-    if (argc >= 3) n_txs   = std::strtoull(argv[1], nullptr, 10);
-    if (argc >= 4) blocksz = std::strtoull(argv[2], nullptr, 10);
-    if (argc >= 5) diff    = argv[3];
+    //pasirinkimas tarp v1 ir v2
+    std::string mode = "v2"; // numatyta v0.2
 
-    //isvedam su kokiais parametrais programa dirbs
+    if (argc >= 2) n_txs   = std::strtoull(argv[1], nullptr, 10);
+    if (argc >= 3) blocksz = std::strtoull(argv[2], nullptr, 10);
+    if (argc >= 4) diff    = argv[3];
+    if (argc >= 5) mode    = argv[4]; // "v1" arba "v2"
+
     std::cout << "  Txs=" << n_txs
               << "  BlockSize=" << blocksz
-              << "  Diff=\"" << diff << "\"\n";
+              << "  Diff=\"" << diff << "\""
+              << "  Mode=" << mode << "\n";
 
-    //sukuriam blockchain su pasirinktu sunkumu
     Blockchain bc(diff);
 
-    //sugeneruojam transakcijas ir uzpildom mempool
+    std::cout << "[start] generating users...\n";
+    bc.init_users(1000);
+
     std::cout << "[start] generating transactions...\n";
     bc.init_transactions(n_txs);
 
-    //skaiciuosim kiek bloku pavyko iskasti
-    std::cout << "[start] begin mining (Proof-of-Work)...\n";
+    // v0.2 parametrai (naudojami tik jei mode == v2)
+    size_t num_candidates = 5;
+    uint64_t max_ms       = 5000;
+
     size_t blocks_mined = 0;
-
-    //kol dar yra transakciju mempoole, kasam blokus
-    while (bc.mine_next_block(blocksz)) {
-        ++blocks_mined;
-
-        //grandines bukle po kiekvieno naujo bloko
-        std::cout << "[chain] height=" << bc.chain().size()
-                  << " mempool_left=" << bc.mempool().size()<< "\n";
+    if (mode == "v1") {
+        std::cout << "[start] begin mining v0.1 (single-candidate, no time limit)...\n";
+        while (bc.mine_next_block(blocksz)) {
+            ++blocks_mined;
+            std::cout << "[chain] height=" << bc.chain().size()
+                      << " mempool_left=" << bc.mempool().size() << "\n";
+        }
+    } else {
+        std::cout << "[start] begin mining v0.2 (multi-candidate, time-limited)...\n";
+        while (bc.mine_next_block_v2(blocksz, num_candidates, max_ms)) {
+            ++blocks_mined;
+            std::cout << "[chain] height=" << bc.chain().size()
+                      << " mempool_left=" << bc.mempool().size() << "\n";
+        }
     }
 
-    //kai transakciju neliko ir daugiau nebera ka daryti
     std::cout << "[done] mining finished. blocks_mined=" << blocks_mined << "\n";
 
-    
     //---------------------------------------------------------
     
     // INTERACTIVE MODE (query blocks/tx)
