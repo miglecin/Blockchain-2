@@ -267,7 +267,7 @@ Candidate Blockchain::build_candidate_from_front(size_t block_size) const {
     return c;
 }
 
-// oW su laiko limitu
+// poW su laiko limitu
 bool Blockchain::try_mine_header(BlockHeader& h, std::string& out_hash, uint64_t max_ms) const {
     using clk = std::chrono::steady_clock;
     auto start = clk::now();
@@ -287,6 +287,7 @@ bool Blockchain::try_mine_header(BlockHeader& h, std::string& out_hash, uint64_t
     }
     return false;
 }
+
 
 //---------------------------------
 //KASIMAS PoW v0.1 (vienas kandidatas be laiko limito)
@@ -433,4 +434,27 @@ bool Blockchain::mine_next_block_v2(size_t block_size, size_t num_candidates, ui
 
     // jei per si cikla nieko neiskaseme, grazinam false, bet kitame cikle vel bandys
     return false;
+}
+
+bool Blockchain::get_balance(const std::string& pubkey, uint64_t& out) const {
+    auto it = balances_.find(pubkey);
+    if (it == balances_.end()) return false;
+    out = it->second;
+    return true;
+}
+
+void Blockchain::print_user(size_t idx) const {
+    if (idx >= users_.size()) {
+        std::cout << "[user] index out of range\n";
+        return;
+    }
+    const auto& u = users_[idx];
+    uint64_t bal = 0;
+    if (!get_balance(u.pubkey, bal)) {
+        std::cout << "[user] " << u.name << " (no balance entry)\n";
+        return;
+    }
+    std::cout << "user:    " << u.name << "\n";
+    std::cout << "pubkey:  " << u.pubkey.substr(0, 32) << "...\n";
+    std::cout << "balance: " << bal << "\n";
 }
