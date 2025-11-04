@@ -1,0 +1,209 @@
+#include "blockchain.h"
+#include "hash_adapter.h"
+#include "utils.h"
+#include <iostream>
+#include <vector>
+#include <chrono>
+
+// -----------------------------------------------------------
+//Merkle root: sujungiam visus tx hash i 1 "bloko pirsto atspauda"
+//Jei nelyginis skaicius - dubliuojam paskutini ir t.t.
+// -----------------------------------------------------------
+std::string Blockchain::merkle_root(std::vector<std::string> ids) const {
+    if (ids.empty()) return HashAdapter::hash_string("");
+    while (ids.size() > 1) {
+        if (ids.size() & 1) ids.push_back(ids.back());//jei nelyginis skaicius - dubliuojam
+        std::vector<std::string> next;
+        next.reserve(ids.size() / 2);
+        for (size_t i = 0; i < ids.size(); i += 2) {
+            // hash(hashA + hashB)
+            next.push_back(HashAdapter::hash_string(ids[i] + ids[i + 1]));
+        }
+        ids.swap(next);
+    }
+    return ids[0]; // vienas galutinis hash
+}
+// -----------------------------------------------------------
+//Bloko header pavertimas i teksta ir hash
+// -----------------------------------------------------------
+std::string Blockchain::serialize_header(const BlockHeader& h) const {
+    std::string s;
+    s += h.prev_block_hash;
+    s += "|" + std::to_string(h.timestamp);
+    s += "|" + h.version;
+    s += "|" + h.txs_hash;
+    s += "|" + std::to_string(h.nonce);
+    s += "|" + h.difficulty;
+    return s;
+}
+//hash nuo header teksto - blocko hashas
+std::string Blockchain::hash_header(const BlockHeader& h) const {
+    return HashAdapter::hash_string(serialize_header(h));
+}
+//ar prasideda nuo 000?
+bool Blockchain::valid_pow(const std::string& hex) const {
+    return hex.rfind(difficulty_, 0) == 0;
+}
+
+// -----------------------------------------------------------
+//Sukuriam bloko kandidata (coinbase + tx is mempool pradzios)
+// -----------------------------------------------------------
+static uint64_t current_block_reward_local(size_t height) {
+    //halving kas 50 bloku
+    const uint64_t BASE_BLOCK_REWARD = 50;
+    size_t era = height / 50;
+    uint64_t reward = BASE_BLOCK_REWARD >> era;
+    if (reward == 0) reward = 1;
+    return reward;
+}
+
+Candidate Blockchain::build_candidate_from_front(size_t block_size) const {
+    Candidate c;
+
+    //---- sukuriam coinbase tx (reward to miner_0) ----
+    uint64_t reward = current_block_reward_local(chain_.size());
+    Transaction coinbase;
+    coinbase.vout.push_back(TxOut{ "miner_0", reward });
+    coinbase.tx_id = calc_tx_id(coinbase);
+    c.txs.push_back(std::move(coinbase));
+
+    //---- paimam N tx is mempool (copy, not remove yet) ----
+    size_t taken = 0;
+    for (const auto& tx : mempool_) {
+        if (taken >= block_size - 1) break;
+        c.txs.push_back(tx);
+        ++taken;
+    }
+
+    //---- paruosiam block header (nonce = 0 dabar) ----
+    c.header.prev_block_hash = chain_.back().block_hash;
+    c.header.timestamp       = now_ts();
+    c.header.difficulty      = difficulty_;
+    //build merkle root from tx ids
+    std::vector<std::string> ids; ids.reserve(c.txs.size());
+    for (auto& t : c.txs) ids.push_back(t.tx_id);
+    c.header.txs_hash        = merkle_root(std::move(ids));
+    c.header.nonce           = 0;
+
+    return c;
+}
+
+// -----------------------------------------------------------
+//kasyba su laiko limitu (v0.2), bandom kol randam gera hash ARBA baigaisi laikas
+// -----------------------------------------------------------
+bool Blockchain::try_mine_header(BlockHeader& h, std::string& out_hash, uint64_t max_ms) const {
+    using clk = std::chrono::steady_clock;
+    auto start = clk::now();
+    size_t iters = 0;
+    while (true) {
+        ++h.nonce; //didinam nonce
+        out_hash = hash_header(h); //skaiciuojam hash
+        if (valid_pow(out_hash)) return true; //jei hash prasideda su 000
+       //kas N interaciju tikrinam ar nesibaige laikas
+        if ((++iters & 0x3FFFF) == 0) {
+            auto now = clk::now();
+            auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now - start).count();
+            if (ms >= (long long)max_ms) break; //laikas baigesi
+
+            std::cout << "[mining] nonce=" << h.nonce
+                      << " hash=" << out_hash.substr(0,16) << "...\r" << std::flush;
+        }
+    }
+    return false; //nepavyko per laiko limita
+}
+
+// -----------------------------------------------------------
+// Kasyba v0.1 (vienas kandidatas, be laiko limito), tol kol randam nonce kuris ataitinka diff
+// -----------------------------------------------------------
+bool Blockchain::mine_next_block(size_t block_size) {
+    if (mempool_.empty()) return false;
+
+    Candidate cand = build_candidate_from_front(block_size);
+    
+    //tikrinam transakcijas pagal UTXO taisykles
+    if (!verify_block_txs(cand.txs)) {
+        std::cout << "[block] verification failed\n";
+        return false;
+    }
+
+    std::string bh;
+    BlockHeader h = cand.header;
+    size_t iters = 0;
+    // brute force nonce: sukame kol hash tinka difficulty
+    do {
+        ++h.nonce;
+        bh = hash_header(h);
+        if ((++iters & 0x3FFFF) == 0) {
+            std::cout << "[mining] nonce=" << h.nonce
+                      << " hash=" << bh.substr(0,16) << "...\r" << std::flush;
+        }
+    } while (!valid_pow(bh));
+
+    std::cout << "\n[mined] block found! nonce=" << h.nonce
+              << " hash=" << bh.substr(0,16) << "...\n";
+
+    //is mempool isimam transakcijas kurios pateko i bloka (be coinbase)
+    size_t need = cand.txs.size() - 1;
+    for (size_t i = 0; i < need && !mempool_.empty(); ++i) mempool_.pop_front();
+
+    //dedam bloka i grandine
+    Block b; b.header = h; b.txs = std::move(cand.txs); b.block_hash = bh;
+    chain_.push_back(std::move(b));
+    //atnaujinam UTXO busena
+    if (!apply_block_state(chain_.back())) {
+        std::cout << "[warn] state apply failed\n";
+        return false;
+    }
+    
+    print_block(chain_.back(), chain_.size() - 1);
+    return true;
+}
+
+// -----------------------------------------------------------
+// Kasyba v0.2
+// Kuriam kelis bloku kandidatus, tikriname kuri pavyks iskasti
+// kiekvienam suteikiam laiko limita (5ms)
+// -----------------------------------------------------------
+bool Blockchain::mine_next_block_v2(size_t block_size, size_t num_candidates, uint64_t max_ms) {
+    if (mempool_.empty()) return false;
+    //kuriam kelis kandidatus i bloka
+    std::vector<Candidate> cands; cands.reserve(num_candidates);
+    for (size_t i = 0; i < num_candidates; ++i) {
+        cands.push_back(build_candidate_from_front(block_size));
+        cands.back().header.timestamp += i; //maza variacija (kad skirtusi hash)
+    }
+    //isimetam blogus kandidatus (UTXO klaidos)
+    for (auto it = cands.begin(); it != cands.end(); ) {
+        if (verify_block_txs(it->txs)) ++it;
+        else it = cands.erase(it);
+    }
+    if (cands.empty()) {
+        std::cout << "[block] no valid candidates (verification failed)\n";
+        return false;
+    }
+    //bandome kiekviena kandidata per max_ms laiko
+    for (auto& cand : cands) {
+        std::string bh; BlockHeader h = cand.header;
+        bool ok = try_mine_header(h, bh, max_ms);
+        if (!ok) { std::cout << "[mining] candidate timed out (no solution)\n"; continue; }
+
+        std::cout << "\n[mined] block found! nonce=" << h.nonce
+                  << " hash=" << bh.substr(0,16) << "...\n";
+
+        //isimam panaudotas tx is mempool (be coinbase)
+        size_t need = cand.txs.size() - 1;
+        for (size_t i = 0; i < need && !mempool_.empty(); ++i) mempool_.pop_front();
+
+        //dedam bloka i grandine
+        Block b; b.header = h; b.txs = std::move(cand.txs); b.block_hash = bh;
+        chain_.push_back(std::move(b));
+        //atnaujinam UTXO
+        if (!apply_block_state(chain_.back())) {
+            std::cout << "[warn] state apply failed\n";
+            return false;
+        }
+        print_block(chain_.back(), chain_.size() - 1);
+        return true;
+    }
+    return false; //nei vieno nepavyko iskasti laiku
+}
