@@ -31,6 +31,7 @@ public:
     // kasyba
     bool mine_next_block(size_t block_size); // v0.1
     bool mine_next_block_v2(size_t block_size, size_t num_candidates, uint64_t max_ms); // v0.2
+    bool mine_next_block_v2_parallel(size_t block_size, size_t num_candidates, uint64_t max_ms);
 
     // skaitymui (REPL)
     const std::vector<Block>& chain() const { return chain_; }
@@ -46,7 +47,7 @@ public:
     void print_user(size_t idx) const;
 
 private:
-    // pagalbiniai (implementuojami .cpp failuose)
+    // pagalbiniai
     std::string calc_tx_id(const Transaction& t) const;
     std::string merkle_root(std::vector<std::string> ids) const;
     std::string serialize_header(const BlockHeader& h) const;
