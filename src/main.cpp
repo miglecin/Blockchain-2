@@ -5,7 +5,15 @@
 //   ./blockchain
 //   ./blockchain 5000
 //   ./blockchain 5000 50
-//   ./blockchain 5000 50 0000
+//   ./blockchain 5000 50 000 --v2
+//   ./blockchain 10000 100 000 --v2 --parallel --candidates 8 --time-ms 3000
+
+// flags:
+//   --v1               - kasa senu vieno kandidato rezimu (be laiko limito)
+//   --v2               - v0.2 paprastas multi-candidate (su laiko limitu)
+//   --parallel         - v0.2 lygiagretus multi-candidate (threads)
+//   --candidates <N>   - kandidatu skaicius (default 5)
+//   --time-ms <MS>     - laiko limitas kasybai vienai bangai (default 5000)
 #include "blockchain.h"
 #include <iostream>
 #include <sstream>
@@ -17,40 +25,93 @@ int main(int argc, char** argv) {
     size_t blocksz = 100;     // kiek transakciju viename bloke
     std::string diff = "000"; // PoW sunkumas (prefiksas)
 
+    // kasybos rezimas (vienas is: v1, v2, parallel)
+    enum Mode { MODE_V1, MODE_V2, MODE_V2_PARALLEL };
+    Mode mode = MODE_V2; // default v0.2 paprastas
+
+    // v0.2 parametrai
+    size_t num_candidates = 5;
+    uint64_t max_ms = 5000;
+
     // CLI argumentai
     if (argc >= 2) n_txs   = std::strtoull(argv[1], nullptr, 10);
     if (argc >= 3) blocksz = std::strtoull(argv[2], nullptr, 10);
     if (argc >= 4) diff    = argv[3];
 
+    //papildomi flagai
+    for (int i = 4; i < argc; ++i) {
+        std::string a = argv[i];
+        if (a == "--v1") {
+            mode = MODE_V1;
+        } else if (a == "--v2") {
+            mode = MODE_V2;
+        } else if (a == "--parallel") {
+            mode = MODE_V2_PARALLEL;
+        } else if (a == "--candidates" && i + 1 < argc) {
+            num_candidates = std::strtoull(argv[++i], nullptr, 10);
+        } else if (a == "--time-ms" && i + 1 < argc) {
+            max_ms = std::strtoull(argv[++i], nullptr, 10);
+        } else if (a == "--help" || a == "-h") {
+            std::cout
+                << "Usage: ./blockchain [n_txs] [block_size] [difficulty] [flags]\n"
+                << "Flags:\n"
+                << "  --v1                kasa vieno kandidato rezimu (be laiko limito)\n"
+                << "  --v2                paprastas multi-candidate (default)\n"
+                << "  --parallel          lygiagretus multi-candidate (threads)\n"
+                << "  --candidates <N>    kandidatu skaicius (default 5)\n"
+                << "  --time-ms <MS>      laiko limitas vienai bangai (default 5000)\n";
+            return 0;
+        }
+    }
+
+    // isvedam pasirinkimus
     std::cout << "  Txs=" << n_txs
               << "  BlockSize=" << blocksz
-              << "  Diff=\"" << diff << "\"\n";
+              << "  Diff=\"" << diff << "\""
+              << "  Mode=" << (mode == MODE_V1 ? "v1"
+                                   : mode == MODE_V2 ? "v2"
+                                                     : "v2_parallel")
+              << "  Candidates=" << num_candidates
+              << "  TimeMs=" << max_ms
+              << "\n";
 
-    // sukurti blockchain su pasirinktu sunkumu (v0.2 + UTXO)
+    //sukurti blockchain 
     Blockchain bc(diff);
 
-    // sugeneruoti ~1000 naudotoju ir pradinius UTXO
+    //v0.2: naudotojai + UTXO
     std::cout << "[start] generating users...\n";
     bc.init_users(1000);
 
-    // sugeneruoti UTXO pagrindu transakcijas i mempool
-    std::cout << "[start] generating transactions (UTXO)...\n";
+    std::cout << "[start] generating transactions...\n";
     bc.init_transactions(n_txs);
 
-    // v0.2 kasybos parametrai
-    size_t   num_candidates = 5;
-    uint64_t max_ms         = 5000;
-
-    std::cout << "[start] begin mining v0.2 (multi-candidate, time-limited, UTXO)...\n";
+    //kasyba pagal pasirinkta rezima
     size_t blocks_mined = 0;
-
-    while (bc.mine_next_block_v2(blocksz, num_candidates, max_ms)) {
-        ++blocks_mined;
-        std::cout << "[chain] height=" << bc.chain().size()
-                  << " mempool_left=" << bc.mempool().size() << "\n";
+    if (mode == MODE_V1) {
+        std::cout << "[start] begin mining v0.1 (single candidate)...\n";
+        while (bc.mine_next_block(blocksz)) {
+            ++blocks_mined;
+            std::cout << "[chain] height=" << bc.chain().size()
+                      << " mempool_left=" << bc.mempool().size() << "\n";
+        }
+    } else if (mode == MODE_V2) {
+        std::cout << "[start] begin mining v0.2 (multi-candidate, time-limited)...\n";
+        while (bc.mine_next_block_v2(blocksz, num_candidates, max_ms)) {
+            ++blocks_mined;
+            std::cout << "[chain] height=" << bc.chain().size()
+                      << " mempool_left=" << bc.mempool().size() << "\n";
+        }
+    } else { // MODE_V2_PARALLEL
+        std::cout << "[start] begin mining v0.2 (PARALLEL multi-candidate, time-limited)...\n";
+        while (bc.mine_next_block_v2_parallel(blocksz, num_candidates, max_ms)) {
+            ++blocks_mined;
+            std::cout << "[chain] height=" << bc.chain().size()
+                      << " mempool_left=" << bc.mempool().size() << "\n";
+        }
     }
 
     std::cout << "[done] mining finished. blocks_mined=" << blocks_mined << "\n";
+
 
     // INTERAKTYVUS REZIMAS (REPL)
     std::cout << "\n[interactive] type 'help' for commands, 'exit' to quit\n";
