@@ -10,7 +10,7 @@ inline uint64_t now_ts() {
 }
 
 inline std::mt19937_64& rng() {
-    static std::mt19937_64 gen{123456789ULL}; //pastovi seed v0.1
+    static std::mt19937_64 gen{123456789ULL}; // pastovi seed (testams)
     return gen;
 }
 
