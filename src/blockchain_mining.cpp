@@ -4,6 +4,9 @@
 #include <iostream>
 #include <vector>
 #include <chrono>
+#include <thread>
+#include <atomic>
+#include <mutex>
 
 // -----------------------------------------------------------
 //Merkle root: sujungiam visus tx hash i 1 "bloko pirsto atspauda"
@@ -206,4 +209,114 @@ bool Blockchain::mine_next_block_v2(size_t block_size, size_t num_candidates, ui
         return true;
     }
     return false; //nei vieno nepavyko iskasti laiku
+}
+
+// -----------------------------------------------------------
+// Kasyba v0.2 (lygiagreciai, tikras multithread)
+// Kiekvienas kandidatas kasamas atskirame threade
+// Pirmas radęs sprendima laimi, kiti nutraukiami
+// -----------------------------------------------------------
+bool Blockchain::mine_next_block_v2_parallel(size_t block_size, size_t num_candidates, uint64_t max_ms) {
+    if (mempool_.empty()) return false;
+
+    // 1) Sukuriam kandidatus (snapshot nuo mempool pradzios)
+    std::vector<Candidate> cands; 
+    cands.reserve(num_candidates);
+    for (size_t i = 0; i < num_candidates; ++i) {
+        cands.push_back(build_candidate_from_front(block_size));
+        cands.back().header.timestamp += i; // maza variacija tarp headeriu
+    }
+
+    // 2) Ismetam blogus (UTXO klaidos)
+    for (auto it = cands.begin(); it != cands.end(); ) {
+        if (verify_block_txs(it->txs)) ++it;
+        else it = cands.erase(it);
+    }
+    if (cands.empty()) {
+        std::cout << "[block] no valid candidates (verification failed)\n";
+        return false;
+    }
+
+    // 3) Lygiagretus kasimas
+    std::atomic<bool> stop(false);     // true - visi kiti threadai baigia darba
+    std::atomic<int>  winner(-1);      // laimejusio kandidato indeksas
+    std::mutex        mtx;             // apsaugai kai irasom laimetojo duomenis
+
+    // saugosime laimetojo header/hash
+    BlockHeader winner_h{};
+    std::string winner_bh;
+
+    auto start = std::chrono::steady_clock::now();
+
+    // darbine funkcija kiekvienam kandidatui
+    auto worker = [&](size_t idx) {
+        BlockHeader h = cands[idx].header;
+        std::string bh;
+        size_t iters = 0;
+
+        while (!stop.load(std::memory_order_relaxed)) {
+            ++h.nonce;
+            bh = hash_header(h);
+            if (valid_pow(bh)) {
+                // pirmas kuris nustate stop=true laimi
+                bool was_stopped = stop.exchange(true);
+                if (!was_stopped) {
+                    std::lock_guard<std::mutex> lk(mtx);
+                    winner = static_cast<int>(idx);
+                    winner_h = h;
+                    winner_bh = bh;
+                }
+                return;
+            }
+            // kas ~260k tikrinam laika arba stop veliavele
+            if ((++iters & 0x3FFFF) == 0) {
+                if (stop.load(std::memory_order_relaxed)) return;
+                auto now = std::chrono::steady_clock::now();
+                auto ms  = std::chrono::duration_cast<std::chrono::milliseconds>(now - start).count();
+                if (ms >= (long long)max_ms) return; // laikas baigesi siam threade
+                std::cout << "[mining] cand=" << idx
+                          << " nonce=" << h.nonce
+                          << " hash="  << bh.substr(0,16) << "...\r" << std::flush;
+            }
+        }
+    };
+
+    // paleidziam po viena threada kiekvienam kandidatui (arba iki num_candidates)
+    std::vector<std::thread> ths;
+    ths.reserve(cands.size());
+    for (size_t i = 0; i < cands.size(); ++i) {
+        ths.emplace_back(worker, i);
+    }
+    // laukiam visu
+    for (auto& t : ths) t.join();
+
+    // 4) Ar turim laimetoja?
+    if (winner.load() < 0) {
+        std::cout << "[mining] no solution within time limit\n";
+        return false;
+    }
+
+    int wi = winner.load();
+    std::cout << "\n[mined] block found! cand=" << wi
+              << " nonce=" << winner_h.nonce
+              << " hash="  << winner_bh.substr(0,16) << "...\n";
+
+    // 5) Ismempoolinam tiek, kiek sunaudojo laimetojo kandidatas (be coinbase)
+    size_t need = cands[wi].txs.size() - 1;
+    for (size_t i = 0; i < need && !mempool_.empty(); ++i) mempool_.pop_front();
+
+    // 6) Suformuojam bloka, pritaikom UTXO busena
+    Block b;
+    b.header     = winner_h;
+    b.txs        = std::move(cands[wi].txs);
+    b.block_hash = winner_bh;
+
+    chain_.push_back(std::move(b));
+    if (!apply_block_state(chain_.back())) {
+        std::cout << "[warn] state apply failed\n";
+        return false;
+    }
+
+    print_block(chain_.back(), chain_.size() - 1);
+    return true;
 }
