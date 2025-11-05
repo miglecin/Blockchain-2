@@ -53,7 +53,7 @@ Parallel kasimas su thread'ais ir stop flag | (v0.2)
 
 ---
 
-## 1. Projekto STRUKTŪRA
+## Projekto STRUKTŪRA
 
 ```
 include/
@@ -71,7 +71,7 @@ my_hash/
 
 ---
 
-## 2. Programos veikimo PRINCIPAS
+## Programos veikimo PRINCIPAS
 
 Blockchain veikia tokiu ciklu:
 
@@ -88,7 +88,7 @@ Blockchain veikia tokiu ciklu:
 
 ---
 
-## 3. UTXO modelis (kaip Bitcoin)
+## UTXO modelis (kaip Bitcoin)
 
 UTXO = *Unspent Transaction Output* 
 
@@ -136,7 +136,7 @@ Tx:
 
 ---
 
-## 4. Bloko struktūra
+## Bloko struktūra
 
 ```bash
 +---------------------------+
@@ -170,7 +170,7 @@ Paaiškinimai:
 
 ---
 
-## 5. Proof‑of‑Work (PoW)
+## Proof‑of‑Work (PoW)
 
 **Proof-of-Work (PoW)** yra algoritmas, kuris užtikrina, kad naujas blokas būtų **sukurtas tik atlikus realų skaičiavimo darbą**.
 Tai apsaugo tinklą nuo piktavalių ir dvigubo išleidimo (double-spend).
@@ -205,7 +205,7 @@ Header + Nonce ---> HASH ---> Prasideda "000"? → Taip → Blokas tvirtas
 ```
 ---
 
-## 6. Transakcijos
+## Transakcijos
 
 Transakcijos šiame projekte modeliuoja **pinigų judėjimą tarp vartotojų**, panašiai kaip Bitcoin tinklo transakcijos.
 
@@ -353,7 +353,7 @@ out[0]: to=miner_0 val=12
 
 ---
 
-## 10. Merkle Root
+## Merkle Root
 
 Tikrinimo medžio šaknis iš visų `tx_id`.  
 Užtikrina vientisumą — pakeitus bet kurią TX, keičiasi root.
@@ -375,21 +375,27 @@ H0  H1  H2 H2  (duplicate last)
 ```
 ---
 
-## 11. CLI režimas
+## CLI režimas
+
+Pasibaigus automatiniam kasimui, programa pereina į interaktyvų režimą.
+Čia galima **apžiūrėti blokų grandinę, transakcijas, balansus ir mempool**.
 
 Komandos:
 
-Komanda | Paskirtis
--------|----------
-`help` | Komandų sąrašas
-`getblock N` | Parodo konkretų bloką
-`gettx TXID` | Suranda transakciją
-`latest N` | Rodo paskutinius blokus
-`mempool N` | Rodo pirmas N mempool transakcijų
-`exit` | Išeiti
+| Komanda             | Aprašymas                                               |
+| ------------------- | ------------------------------------------------------- |
+| `help`              | Parodo pagalbos tekstą                                  |
+| `exit`              | Išeina iš CLI                                           |
+| `getblock <height>` | Parodo bloką pagal aukštį (0 = genesis)                 |
+| `gettx <txid>`      | Rodo transakciją + jos UTXO input'us ir output'us       |
+| `latest [n]`        | Rodo paskutinius `n` blokų (numatytai 5)                |
+| `mempool [n]`       | Rodo pirmas `n` mempool transakcijų (numatytai 5)       |
+| `balance <pubkey>`  | Rodo vartotojo balansą pagal public key                 |
+| `user <i>`          | Parodo i-to naudotojo informaciją (name/pubkey/balance) |
+
 ---
 
-## 12. v0.2 Lygiagretus kasimas (Multi‑Candidate Mining)
+## v0.2 Lygiagretus kasimas (Multi‑Candidate Mining)
 
 ### v0.1
 
@@ -462,7 +468,7 @@ Tai imituoja realų tinklą, kur **kelios kasyklos konkuruoja**.
 
 ---
 
-## 13. Paleidimas
+##  Paleidimas
 
 ### Įprastas
 
@@ -497,7 +503,7 @@ Naudojama custom hash:
 Hash adapteris konvertuoja į blockchain formatą.
 
 
-## 14. Pavyzdinė išvestis
+## Pavyzdinė kosoles išvestis
 
 ```
 [mining] nonce=11071 hash=00065418e72b9ee3...
@@ -537,10 +543,29 @@ Hash adapteris konvertuoja į blockchain formatą.
 ========================================
 [chain] height=100 mempool_left=149
 ```
+### Bloko peržiūra (`getblock`)
+
+![getblock screenshot](screenshots/getblock.png)
+
+### Transakcijos peržiūra bloke (`getblocktx`)
+
+![getblocktx screenshot](screenshots/getblocktx.png)
+
+### Naujausi blokai (`latest 2`)
+
+![latest screenshot](screenshots/latest.png)
+
+### Vartotojo informacija (`user 55`)
+
+![user screenshot](screenshots/user.png)
+
+### Balanso peržiūra (`balance user_55`)
+
+![balance screenshot](screenshots/balance.png)
 
 ---
 
-## 15. Išvados
+## Išvados
 
 - Įgyvendintas Bitcoin‑stiliaus UTXO modelis
 - Realizuotas PoW kasimas su difficulty
