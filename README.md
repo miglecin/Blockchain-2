@@ -510,38 +510,6 @@ Hash adapteris konvertuoja į blockchain formatą.
 [mined] block found! nonce=11071...
 [mined] block found! cand=2 nonce=18560 hash=0000ca928daa118a...
 
-========================================
- Block #99
-----------------------------------------
- block_hash:      0000ca928daa118aa572642898559188a6730096a356d1ce0319acc050be8c45
- prev_block_hash: 00008a40afdcd18cf6bb2d7cdab57663aede44a9234b20a36427135cfed91b51
- difficulty:      0000
- nonce:           18560
- timestamp:       1762253948
- txs_in_block:    50
- txs_hash:        0b24c6379ab2b1f614f26ff080a0aa17618f8d158c3b52ccd49e1013e27f1f67
-----------------------------------------
- tx[0]: id=0056520730b04cf8...
-   out[0]: to=miner_0... val=25
- tx[1]: id=9f996cb30b8ff821...
-   in[0]: b49b6bd13cb844f8:1
-   out[0]: to=4c6aa1a6dec65485... val=6
-   out[1]: to=00e61328211b1102... val=4
- tx[2]: id=751e5d76b03bbb2a...
-   in[0]: 0c27a2de151db38a:0
-   out[0]: to=4c6aa1c5dec65888... val=10
-   out[1]: to=b564d2d320e80030... val=68
- tx[3]: id=164f6fdddbce2f5c...
-   in[0]: 0c27a2de151db38a:1
-   out[0]: to=4c6aa1e4dec65c8b... val=95
-   out[1]: to=682080ce8e6fb64a... val=539140
- tx[4]: id=f5f332009665f0cc...
-   in[0]: 603d33506f38361f:0
-   out[0]: to=4c6aa203dec6608e... val=25
-   out[1]: to=b564d2f220e80433... val=35
- ... (45 more txs not shown)
-========================================
-[chain] height=100 mempool_left=149
 ```
 ### Bloko peržiūra (`getblock`)
 
@@ -567,11 +535,63 @@ Hash adapteris konvertuoja į blockchain formatą.
 
 ## Išvados
 
-- Įgyvendintas Bitcoin‑stiliaus UTXO modelis
-- Realizuotas PoW kasimas su difficulty
-- Sudėtas Merkle Root patikrinimas
-- Pridėta lygiagreti kasimo simuliacija (v0.2)
-- Projektas tinka edukacijai ir PoW supratimui
+Šiame projekte sukurta veikianti supaprastinta blokų grandinė, paremta pagrindiniais Bitcoin principais:
+
+### Pagrindiniai pasiekti tikslai
+
+- Įgyvendintas **UTXO modelis** vietoje paprastos balanso lentelės — tai suteikia tikrovišką lėšų valdymą kaip Bitcoin tinkle.
+- Sukurtas **Proof-of-Work algoritmas** su reguliuojamu sudėtingumu (`difficulty`) ir nonce paieška.
+- Pridėtas **coinbase atlygis kalnakasiui** ir **halving mechanizmas**, mažinantis reward'ą kas nustatytą blokų skaičių.
+- Realizuota **mempool sistema**, kurioje laikomos nepatvirtintos transakcijos, ir logika joms patekti į bloką.
+- Sukurtas **tikras Merkle Root** skaičiavimas, užtikrinantis transakcijų vientisumą bloke.
+- Integruotas **lygiagretus (parallel) kasimas su kelių blokų kandidatais (v0.2)**, imituojantis decentralizuotą kasybos lenktynių mechanizmą.
+
+### Rezultatas
+
+Projektas aiškiai parodo:
+
+- kaip formuojami blokai
+- kaip tikrinamos ir taikomos transakcijos
+- kaip vyksta konkurencija tarp „mazgų“
+- kaip veikia UTXO, PoW ir Merkle Root grandinėje
+- kaip atlygis mažėja laikui bėgant (halving)
+
+## Sistemos ribotumai ir trūkumai
+
+Nors projektas realizuoja pagrindines blockchain idėjas, jis turi supaprastinimų ir ribotumų:
+
+
+### Techniniai ribotumai
+- **Vieno mazgo sistema** — nėra tikro P2P tinklo, visi procesai vyksta lokaliai.
+- **Nėra pilno transakcijų parašų (ECDSA)** — UTXO modelis veikia, bet nėra realios kriptografinės vartotojų autentifikacijos.
+- **Nėra blokų propagacijos ir tikro fork sprendimo** — lygiagretus kasimas simuliuotas, bet nėra tinklo konsensuso logikos.
+- **Mempool prioritetas supaprastintas** — transakcijos nevertinamos pagal fee ar dydį, atrenkamos tiesiog iš eilės.
+- **Fiksuotas bloko dydis** — nėra dinaminio limito ar dydžio optimizavimo.
+
+### Funkciniai ribotumai
+- **Ekonomika supaprastinta** — nėra transaction fee rinkos ar mempool konkurencijos.
+- **Nėra smart contract palaikymo** — tik bitcoin-stiliaus transakcijos.
+- **Nėra tinklo vėlavimo, paketų praradimo simuliacijos** — todėl nėra tikro race conditions tarp mazgų.
+
+### Sauga
+- **Nėra apsaugos nuo DoS / spam transakcijų** — realus tinklas reikalautų fee + minGasLimit.
+- **Privatumo nėra** — visa transakcijų informacija atvira kaip Bitcoin UTXO modelyje.
+
+### Našumas
+- **PoW CPU-only ir vieno proceso** (lygiagretūs tik kandidatai, ne realūs mazgai)
+- **Nėra mempool limitų** — galima įdėti neribotai transakcijų RAM'e.
 
 ---
 
+## AI pagalba
+
+Šiame projekte AI buvo naudojamas kaip pagalbinė priemonė, skirta:
+- paaiškinti blockchain teorinius principus (UTXO, PoW, Merkle Trees, halving)
+- padėti susiplanuoti architektūrą ir funkcijų sąrašą
+- pasiūlyti geresnę projekto struktūrą (atskirti state/mining/CLI/print logiką)
+- paaiškino pažangesnius C++ konceptus:
+  - `std::atomic<bool>` ir `memory_order_relaxed`
+  - thread structūra
+  - `std::lock_guard<std::mutex>`
+- kodo optimizavimo rekomendacijoms (pvz. `std::atomic`, `reserve()`, lock scope)
+- debug'inti kraštutinius atvejus (pvz. mempool netvarkingumą, nonce overflow)
