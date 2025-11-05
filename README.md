@@ -172,20 +172,37 @@ Paaiškinimai:
 
 ## 5. Proof‑of‑Work (PoW)
 
-Tikslas rasti nonce, kad:
+**Proof-of-Work (PoW)** yra algoritmas, kuris užtikrina, kad naujas blokas būtų **sukurtas tik atlikus realų skaičiavimo darbą**.
+Tai apsaugo tinklą nuo piktavalių ir dvigubo išleidimo (double-spend).
 
+#### Tikslas:
+Rasti tokį `nonce`, kad:
 ```
-hash(block_header) prasidėtų difficulty pattern (pvz. "0000")
+hash(block_header) prasidėtų difficulty (pvz. "0000")
 ```
+Tai vadinama **kasimu**, nes kompiuteris turi "iškasti" tinkamą nonce vertę.
 
-Procesas:
-
+#### Pseudokodas:
 ```
 nonce = 0
-while hash != valid:
+do {
+    hash = HASH(header + nonce)
     nonce++
+} while (hash does not start with "000...")
 ```
+#### Ką garantuoja PoW?
+| Užtikrina        | Ką reiškia                                          |
+| ---------------- | --------------------------------------------------- |
+| Decentralizaciją | Bet kas gali kasti, nėra centrinio valdovo          |
+| Saugumą          | Kad pakeisti bloką, reikia perkasti visus sekančius |
+| İntegnumą        | Nė vienas negali į tinklą įterpti suklastotų blokų  |
+| Anti-spam        | Blokų kūrimas kainuoja energiją / laiką             |
 
+### VIZUALIAI:
+```BASH
+Header + Nonce ---> HASH ---> Prasideda "000"? → Taip → Blokas tvirtas
+                          \→ Ne → nonce++
+```
 ---
 
 ## 6. Transakcijų generavimas
