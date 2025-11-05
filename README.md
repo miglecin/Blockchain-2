@@ -1,15 +1,23 @@
 # Blockchain-2
 # Supaprastinta blokų grandinė (Blockchain v0.2)
 
-Šis projektas įgyvendina **blokų grandinės (Blockchain)** sistemą C++ kalba su:
+Tai yra **Bitcoin‑stiliaus blockchain** realizacija C++ kalba.  
+Tikslas — suprasti kaip *iš tikro* veikia blokų grandinė, išardant ją iki atomų.
 
-- UTXO modeliu (kaip Bitcoin)
-- Proof‑of‑Work konsensusu
-- Coinbase (block reward) ir halving mechanizmu
-- Mempool transakcijų sistema
-- Merkle Root transakcijų medžiu
-- CLI interaktyviu režimu
-- **v0.2** versija su **lygiagrečiu kasimu (multi‑candidate mining)**
+## Projektas apima:
+
+| Funkcija | Aprašymas |
+|---|---|
+UTXO modelis | Transakcijų balanso tikrinimas
+Mempool sistema | Transakcijų eilė
+Proof‑of‑Work | Reikia rasti nonce → hash su nuliais
+Coinbase TX | Nauji pinigai kasėjui
+Fee sistema | Už TX kasėjui sumokama
+Halving | Reward mažėja kas 50 blokų
+Merkle Tree | Patikrinama transakcijų vientisumas
+CLI | Galima tikrinti bloką / TX / balansą
+Multi-candidate mining | (v0.2) 
+Parallel kasimas su thread'ais ir stop flag | (v0.2) 
 
 ---
 
@@ -33,7 +41,7 @@
 
 ---
 
-## 1. Architektūra
+## 1. Projekto STRUKTŪRA
 
 ```
 include/
@@ -56,10 +64,10 @@ my_hash/
 Blockchain veikia tokiu ciklu:
 
 1. Sukuriamas **genesis blokas**
-2. Sugeneruojami vartotojai ir jų UTXO
-3. Sugeneruojami `n` mempool transakcijų
+2. Sugeneruojami vartotojai ir jų pradiniai UTXO
+3. Sugeneruojamos transakcijos (mempool)
 4. Imamos pirmos `block_size` transakcijos
-5. Įdedama speciali `coinbase` transakcija
+5. Įdedama speciali `coinbase` transakcija kasėjui
 6. Skaičiuojamas Merkle Root
 7. Pradedamas PoW (nonce paieška)
 8. Suradus tinkamą bloką — jis pridedamas į grandinę
@@ -92,6 +100,25 @@ UTXO = *Unspent Transaction Output*
 ---
 
 ## 4. Bloko struktūra
+
+### VIZUALIAI:
+```bash
++---------------------------+
+|        Block              |
+|---------------------------|
+| Header                    |
+|  prev_block_hash          |
+|  timestamp                |
+|  difficulty               |
+|  merkle_root             |
+|  nonce                    |
+|                           |
+| Transactions[]            |
+|  tx0 = coinbase           |
+|  tx1, tx2, ...            |
++---------------------------+
+```
+
 
 ```
 Block {
