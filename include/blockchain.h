@@ -5,6 +5,9 @@
 #include <string>
 #include <unordered_map>
 
+//kiekviena transakcija kainuoja 1 moneta (įeina į fee base)
+static constexpr uint64_t TX_FEE = 1;
+
 // paprasta vartotojo info struktura
 struct User {
     std::string name;    // vartotojo vardas (pvz. user_0)
@@ -38,6 +41,7 @@ public:
     const std::deque<Transaction>& mempool() const { return mempool_; }
     const Block* get_block_by_height(size_t height) const;
     const Transaction* get_transaction_by_id(const std::string& tx_id) const;
+    const std::vector<User>& users() const { return users_; }
 
     void print_transaction(const Transaction& tx) const;
     void print_block(const Block& b, size_t height) const;
@@ -60,6 +64,10 @@ private:
 
     Candidate build_candidate_from_front(size_t block_size) const;
     bool try_mine_header(BlockHeader& h, std::string& out_hash, uint64_t max_ms) const;
+
+    //fees apskaiciavimas
+    uint64_t calc_tx_fee(const Transaction& tx) const;
+    void add_fees_to_coinbase(Transaction& coinbase, const std::vector<Transaction>& txs) const;
 
 private:
     // busena
