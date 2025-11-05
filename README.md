@@ -326,17 +326,30 @@ Išvestis:
 
 ## Coinbase + Halving
 
-Pirmoji blokų transakcija:
+**Coinbase transakcija** — tai pirmoji transakcija bloke.
+Ji neturi input'ų, nes **sukuria naujas monetas** (kaip Bitcoin).
 
+Kaip ji veikia?
+  - Į kiekvieną bloką automatiškai įdedama pirma transakcija coinbase
+  - Ji prideda reward kasėjui (miner_0 arba kitam miner’iui, jei bus daugiau)
+  - Coinbase monetos niekada neturi siuntėjo (input = GENESIS)
+
+#### Halving mechanizmas
+
+Monetų sukūrimas laikui bėgant mažėja, kad valiuta nebūtų infliacinė.
 ```
-miner_0 gauna reward
+Reward start: 50
+Kas 50 blokų → reward = reward / 2
+Minimalus reward = 1
 ```
 
-Reward mažėja kas 50 blokų:
-
+Išvestis:
 ```
-50 → 25 → 12 → 6 → 3 → ... → min = 1
+tx[0]: id=900aee8f43f7...
+out[0]: to=miner_0 val=12
 ```
+- Miner’is iškasė bloką
+- Gavo 12 monetų reward
 
 ---
 
