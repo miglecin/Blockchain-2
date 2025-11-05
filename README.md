@@ -88,6 +88,19 @@ Blockchain veikia tokiu ciklu:
 
 ---
 
+## Objektinio programavimo principai
+
+| OOP principas | Kaip jis panaudotas |
+|---|---|
+**Enkapsuliacija** | Vidinė būsena (UTXO, mempool, chain) slepiama klasėse. Laukai `private`, prieiga per viešus metodus (`get_balance()`, `get_block()` ir kt.) |
+**Atsakomybės atskyrimas (SRP)** | Kiekviena klasė/modulis turi aiškią rolę: `Blockchain` – valdo grandinę, `Mining` – kasimas, `State` – UTXO ir balansai, `Print` – išvedimas, `main.cpp` – CLI |
+**RAII / Automatinė atminties kontrolė** | Naudojami STL konteineriai (`vector`, `deque`, `unordered_map`) ir automatiniai objektai; nėra `new/delete` |
+**Const correctness** | Metodai, kurie nekeičia būsenos, pažymėti `const`, pvz. `get_block() const`. Užtikrina saugumą ir aiškumą |
+**Move/COPY control** | Dideli objektai nekopijuojami be reikalo; naudojami `const&` ir kur reikia — `noexcept` move operatoriai efektyvumui |
+**Modulinė architektūra** | Logika išskaidyta į atskirus failus: `state`, `mining`, `print`, `main`. Lengviau suprasti, palaikyti ir plėsti |
+
+---
+
 ## UTXO modelis (kaip Bitcoin)
 
 UTXO = *Unspent Transaction Output* 
