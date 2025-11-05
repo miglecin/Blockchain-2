@@ -288,22 +288,43 @@ Kiekviena transakcija turi fiksuotą mokestį — `1 coin`
 
 --- 
 
-## 8. Mempool
+## Genesis blokas
 
-- `prev_hash = 64 nuliai`
-- `nonce = 0` (nekasamas)
-- jokios transakcijos
+Pirmas blokas grandinėje — **genesis blokas**.
+Jis sukuriamas programos pradžioje ir neturi tėvinio bloko.
+
+Savybės:
+  - prev_hash = 0...0 (visi nuliai)
+  - Nėra realių transakcijų (arba tik speciali inicializacijos TX)
+  - Nekasamas — nonce gali būti 0 (PoW nepritaikomas)
+  - Tarnauja kaip grandinės pradžia ir atskaitos taškas
 
 Išvestis:
-
 ```
 [chain] genesis block created (height=0)
 ```
+
+#### VIZUALIAI:
+```
++----------------------------------+
+|          GENESIS BLOCK          |
++----------------------------------+
+| prev_block_hash: 000000...0000  |  <- nėra tėvinio bloko
+| timestamp:       <start time>   |
+| difficulty:      <set value>    |
+| nonce:           0              |  <- PoW nekasamas
+| merkle_root:     GENESIS        |  <- nėra tikrų TX
++----------------------------------+
+| transactions[]                  |
+|   [0] GENESIS_TX (pradiniai UTXO) |
+|   - sukuria pradinius pinigus   |
+|   - paskirsto vartotojams       |
++----------------------------------+
 ```
 
 ---
 
-## 9. Coinbase + Halving
+## Coinbase + Halving
 
 Pirmoji blokų transakcija:
 
