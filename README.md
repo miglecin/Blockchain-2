@@ -554,7 +554,7 @@ Hash adapteris konvertuoja į blockchain formatą.
 
 - Įgyvendintas **UTXO modelis** vietoje paprastos balanso lentelės — tai suteikia tikrovišką lėšų valdymą kaip Bitcoin tinkle.
 - Sukurtas **Proof-of-Work algoritmas** su reguliuojamu sudėtingumu (`difficulty`) ir nonce paieška.
-- Pridėtas **coinbase atlygis kalnakasiui** ir **halving mechanizmas**, mažinantis reward'ą kas nustatytą blokų skaičių.
+- Pridėtas **coinbase atlygis mineriui** ir **halving mechanizmas**, mažinantis reward'ą kas nustatytą blokų skaičių.
 - Realizuota **mempool sistema**, kurioje laikomos nepatvirtintos transakcijos, ir logika joms patekti į bloką.
 - Sukurtas **tikras Merkle Root** skaičiavimas, užtikrinantis transakcijų vientisumą bloke.
 - Integruotas **lygiagretus (parallel) kasimas su kelių blokų kandidatais (v0.2)**, imituojantis decentralizuotą kasybos lenktynių mechanizmą.
