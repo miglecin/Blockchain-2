@@ -47,14 +47,35 @@ std::string Blockchain::hash_header(const BlockHeader& h) const {
 bool Blockchain::valid_pow(const std::string& hex) const {
     return hex.rfind(difficulty_, 0) == 0;
 }
+// ===========================================================
+//  Fee helper’iai 
+// ===========================================================
+uint64_t Blockchain::calc_tx_fee(const Transaction& /*tx*/) const {
+    // Paprasta politika: fiksuotas 1 už kiekvieną paprastą tx
+   return TX_FEE > 0 ? TX_FEE : 1;
+}
+void Blockchain::add_fees_to_coinbase(Transaction& coinbase, const std::vector<Transaction>& txs) const {
+    // coinbase yra tx[0], kitos tx kaupia mokesčius
+    if (coinbase.vout.empty()) return;
 
+    uint64_t total_fees = 0;
+    // nuo tx[1] iki pabaigos
+    for (size_t i = 1; i < txs.size(); ++i) {
+        total_fees += calc_tx_fee(txs[i]);
+    }
+
+    // pridedam prie coinbase pirmo vout (miner_0)
+    coinbase.vout[0].value += total_fees;
+
+    // coinbase ID priklauso nuo VOUT turinio -> reikia perskaičiuoti
+    coinbase.tx_id = calc_tx_id(coinbase);
+}
 // -----------------------------------------------------------
-//Sukuriam bloko kandidata (coinbase + tx is mempool pradzios)
+//Sukuriam bloko kandidata (FEES -> coinbase + tx is mempool pradzios)
 // -----------------------------------------------------------
-static uint64_t current_block_reward_local(size_t height) {
-    //halving kas 50 bloku
+static uint64_t current_block_reward(size_t height) {
     const uint64_t BASE_BLOCK_REWARD = 50;
-    size_t era = height / 50;
+    size_t era = height / 50; 
     uint64_t reward = BASE_BLOCK_REWARD >> era;
     if (reward == 0) reward = 1;
     return reward;
@@ -63,14 +84,14 @@ static uint64_t current_block_reward_local(size_t height) {
 Candidate Blockchain::build_candidate_from_front(size_t block_size) const {
     Candidate c;
 
-    //---- sukuriam coinbase tx (reward to miner_0) ----
-    uint64_t reward = current_block_reward_local(chain_.size());
+    // 1) coinbase su baziniu atlygiu
+    uint64_t reward = current_block_reward(chain_.size());
     Transaction coinbase;
     coinbase.vout.push_back(TxOut{ "miner_0", reward });
     coinbase.tx_id = calc_tx_id(coinbase);
     c.txs.push_back(std::move(coinbase));
 
-    //---- paimam N tx is mempool (copy, not remove yet) ----
+    // 2) pridėti dar (block_size - 1) tx iš mempool (snapshot)
     size_t taken = 0;
     for (const auto& tx : mempool_) {
         if (taken >= block_size - 1) break;
@@ -78,11 +99,13 @@ Candidate Blockchain::build_candidate_from_front(size_t block_size) const {
         ++taken;
     }
 
-    //---- paruosiam block header (nonce = 0 dabar) ----
+    // 3) PRIEŠ merkle — pridedam mokesčius prie coinbase
+    add_fees_to_coinbase(c.txs[0], c.txs);
+
+    // 4) header (be nonce)
     c.header.prev_block_hash = chain_.back().block_hash;
     c.header.timestamp       = now_ts();
     c.header.difficulty      = difficulty_;
-    //build merkle root from tx ids
     std::vector<std::string> ids; ids.reserve(c.txs.size());
     for (auto& t : c.txs) ids.push_back(t.tx_id);
     c.header.txs_hash        = merkle_root(std::move(ids));

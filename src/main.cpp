@@ -132,10 +132,10 @@ int main(int argc, char** argv) {
                 << "  help                - show this help\n"
                 << "  exit                - quit\n"
                 << "  getblock <height>   - show block by height (0 = genesis)\n"
-                << "  gettx <txid>        - show transaction by id (UTXO inputs/outputs)\n"
+                << "  getblocktx <height> <index> - show transaction by id (UTXO inputs/outputs)\n"
                 << "  latest [n]          - show last n blocks (default 5)\n"
                 << "  mempool [n]         - show first n tx from mempool (default 5)\n"
-                << "  balance <pubkey>    - rodo balansa pagal pubkey (miner_0 irgi galioja)\n"
+                << "  balance <name OR pubkey> - rodo balansa pagal pubkey (miner_0 irgi galioja\n"
                 << "  user <i>            - rodo i-to naudotojo info (name/pubkey/balance)\n";
             continue;
         }
@@ -149,13 +149,19 @@ int main(int argc, char** argv) {
             continue;
         }
 
-        if (cmd == "gettx") {
-            std::string txid;
-            if (!(iss >> txid)) { std::cout << "usage: gettx <txid>\n"; continue; }
-            const Transaction* tx = bc.get_transaction_by_id(txid);
-            if (!tx) std::cout << "Transaction not found (txid=" << txid << ")\n";
-            else bc.print_transaction(*tx);
-            continue;
+        if (cmd == "getblocktx") {
+            size_t h, idx;
+            if (!(iss >> h >> idx)) {
+                std::cout << "usage: getblocktx <height> <index>\n";
+            } else {
+                const Block* b = bc.get_block_by_height(h);
+                if (!b) { std::cout << "no such block\n"; }
+                else if (idx >= b->txs.size()) { std::cout << "tx index out of range\n"; }
+                else {
+                    const Transaction& tx = b->txs[idx];
+                    bc.print_transaction(tx); // čia atspausdina pilną tx_id, VIN/VOUT
+                }
+            }
         }
 
         if (cmd == "latest") {
@@ -181,16 +187,30 @@ int main(int argc, char** argv) {
         }
 
         if (cmd == "balance") {
-            std::string pk;
-            if (!(iss >> pk)) { std::cout << "usage: balance <pubkey|miner_0>\n"; continue; }
-            uint64_t bal = 0;
-            if (bc.get_balance(pk, bal)) {
-                std::cout << "balance(" << pk.substr(0,16) << "...) = " << bal << "\n";
-            } else {
-                std::cout << "not found: " << pk << "\n";
-            }
-            continue;
+    std::string key;
+    iss >> key;
+
+    if (key.empty()) {
+        std::cout << "Usage: balance <pubkey or username>\n";
+        continue;
+    }
+
+    // jei įvestas vartotojo vardas – ieškome jo pubkey
+    for (const auto& u : bc.users()) {
+        if (u.name == key) {
+            key = u.pubkey;
+            break;
         }
+    }
+
+    uint64_t bal = 0;
+    if (bc.get_balance(key, bal)) {
+        std::cout << "Balance: " << bal << "\n";
+    } else {
+        std::cout << "User / key not found\n";
+    }
+    continue;
+}
 
         if (cmd == "user") {
             size_t i;
