@@ -163,10 +163,10 @@ Paaiškinimai:
 | `timestamp`       | UNIX laikas, kada blokas sukurtas                       | Laiko seka + apsauga nuo pakartotinio naudojimo              |
 | `difficulty`      | Kiek nulinių bitų turi prasidėti bloko hash             | Nustato kasimo sudėtingumą ir tinklo saugumą                 |
 | `merkle_root`     | Hash iš visų transakcijų bloko viduje                   | Užtikrina, kad nė viena TX negali būti pakeista              |
-| `nonce`           | Skaičius, kurį kasa kalnakasiai, kad gautų tinkamą hash | Proof-of-Work — garantuoja, kad energija buvo panaudota      |
-| `Transactions[]`  | Visos bloko transakcijos                                | Perduoda nuosavybę, balansus                                 |
+| `nonce`           | Skaičius, kurį kasa miner'iai, kad gautų tinkamą hash | Proof-of-Work — garantuoja, kad *difficulty* atitinka      |
+| `Transactions[]`  | Visos bloko transakcijos                                | Perduoda monetų valdymą (UTXO sunaudojami ir sukuriami nauji)                                 |
 | `tx0 = coinbase`  | Speciali transakcija — bloko atlygį gauna kasėjas       | Sukuria naujus coin'us + surenka fees                        |
-| `tx1, tx2...`     | Įprastos transakcijos iš mempool                        | Perduoda monetų balansus tarp vartotojų                      |
+| `tx1, tx2...`     | Registruoja pinigų judėjimą tarp vartotojų (sumažina siuntėjo balansą ir padidina gavėjo balansą)                        | Užtikrina teisingą balansų apskaitą ir transakcijų istoriją                      |
 
 ---
 
