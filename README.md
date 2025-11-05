@@ -21,23 +21,35 @@ Parallel kasimas su thread'ais ir stop flag | (v0.2)
 
 ---
 
-## Turinys
+## Blokų grandinės komponentai
 
-1. Architektūra
-2. Programos veikimo principas
-3. UTXO modelis
-4. Blokų struktūra
-5. Kasybos (PoW) mechanizmas
-6. Transakcijų generavimas
-7. Genesis blokas
-8. Mempool
-9. Coinbase + Halving
-10. Merkle Root
-11. Interaktyvus CLI režimas
-12. v0.2 Lygiagretus kasimas (Multi‑Candidate Mining)
-13. Paleidimas ir parametrai
-14. Pavyzdinė išvestis
-15. Išvados
+```
++---------------------+
+|      Blockchain     |
+|---------------------|
+| chain (blocks[])    |
+| mempool (tx queue)  |
+| UTXO set            |
+| difficulty          |
++---------+-----------+
+          |
+          |
++---------v-----------+
+|      Mining         |
+|---------------------|
+| build candidates()  |
+| PoW (nonce loop)    |
+| multi-thread race   |
++---------+-----------+
+          |
++---------v-----------+
+|     Ledger/UTXO     |
+|---------------------|
+| validate tx inputs  |
+| update balances     |
+| prevent double spend|
++---------------------+
+```
 
 ---
 
@@ -78,7 +90,22 @@ Blockchain veikia tokiu ciklu:
 
 ## 3. UTXO modelis (kaip Bitcoin)
 
-UTXO = *Unspent Transaction Output*  
+UTXO = *Unspent Transaction Output* 
+
+### Modelio schema:
+```bash
+        +-------------------+
+        |   UTXO SET        |
+        |-------------------|
+    TxID:Index -> { owner, amount }
+        +-------------------+
+
+Naudojant TX:
+
+Tx Input  -> sunaikina UTXO
+Tx Output -> sukuria naują UTXO
+
+```
 
 ### Principas
 
@@ -89,6 +116,16 @@ UTXO = *Unspent Transaction Output*
   - sukuria naujus
 
 **Taisyklė:** `sum(input) ≥ sum(output)`
+
+### VIZUALIAI:
+```
+UserA turi: (UTXO#1: 50)
+
+Tx:
+ Input:  UTXO#1:50
+ Output: to B:30
+         to A:20  (grąža)
+```
 
 ### UTXO klaidos tikrinamos:
 
@@ -110,27 +147,13 @@ UTXO = *Unspent Transaction Output*
 |  prev_block_hash          |
 |  timestamp                |
 |  difficulty               |
-|  merkle_root             |
+|  merkle_root              |
 |  nonce                    |
 |                           |
 | Transactions[]            |
 |  tx0 = coinbase           |
 |  tx1, tx2, ...            |
 +---------------------------+
-```
-
-
-```
-Block {
-  BlockHeader {
-    prev_block_hash        # rodo į praeitą bloką
-    timestamp              # UNIX laikas
-    difficulty             # PoW lygis
-    txs_hash               # Merkle root iš visų tx
-    nonce                  # PoW skaičius
-  }
-  transactions[]           # tx[0] = coinbase (reward)
-}
 ```
 
 Paaiškinimai:
@@ -217,6 +240,21 @@ Reward mažėja kas 50 blokų:
 Tikrinimo medžio šaknis iš visų `tx_id`.  
 Užtikrina vientisumą — pakeitus bet kurią TX, keičiasi root.
 
+### VIZUALIAI:
+```BASH
+TX0   TX1   TX2   TX3
+ |     |     |     |
+H0    H1    H2    H3
+ |__ __|     |__ __|
+   H01        H23
+     |________|
+        Root
+
+Jei nelyginis → dubliuojam:
+
+TX0 TX1 TX2
+H0  H1  H2 H2  (duplicate last)
+```
 ---
 
 ## 11. CLI režimas
@@ -250,22 +288,56 @@ vienas kandidatas → ieškome nonce → radom
 - Kiekvienam suteikiamas `max_ms` laikas
 - Laimi pirmas radęs PoW
 
+### Idėja:
 ```
-keli blokų kandidatai → visi kasami lygiagrečiai → pirmas radęs laimi
+5 kandidatų blokai
+↓
+visi bando rasti nonce
+↓
+pirmas rado → laimėjo → kiti nutraukiami
+```
+
+### VIZUALI EIGA:
+```BASH
+ ┌─────────────┐
+ | Mempool TXs |
+ └──────┬──────┘
+  (take N)
+       ↓
+┌──────────────┐   spawn threads   ┌──────────────┐
+| Candidate #1 |------------------>| Miner Thread |
+└──────────────┘                   └──────────────┘
+┌──────────────┐                   ┌──────────────┐
+| Candidate #2 |------------------>| Miner Thread |
+└──────────────┘                   └──────────────┘
+┌──────────────┐                   ┌──────────────┐
+| Candidate #3 |------------------>| Miner Thread |
+└──────────────┘                   └──────────────┘
+┌──────────────┐                   ┌──────────────┐
+| Candidate #4 |------------------>| Miner Thread |
+└──────────────┘                   └──────────────┘
+┌──────────────┐                   ┌──────────────┐
+| Candidate #5 |------------------>| Miner Thread |
+└──────────────┘                   └──────────────┘
+
+         winner!
+            ↓
+     commit → chain
+```
+
+### STOP mechanizmas:
+```
+atomic<bool> stop = false
+
+if (thread finds PoW) {
+    stop = true  // kiti sustoja
+}
 ```
 
 Argumentas:
 
 ```
 --parallel
-```
-
-Viduje:
-
-```
-for each candidate:
-    try mine N ms
-    if found → winner
 ```
 
 Tai imituoja realų tinklą, kur **kelios kasyklos konkuruoja**.
