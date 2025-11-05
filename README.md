@@ -205,16 +205,90 @@ Header + Nonce ---> HASH ---> Prasideda "000"? → Taip → Blokas tvirtas
 ```
 ---
 
-## 6. Transakcijų generavimas
+## 6. Transakcijos
 
-- Sukuriama `N` transakcijų
-- Gavėjas = kitas vartotojas
-- Suma 1–100
-- TX ID = hash(VIN + VOUT)
+Transakcijos šiame projekte modeliuoja **pinigų judėjimą tarp vartotojų**, panašiai kaip Bitcoin tinklo transakcijos.
+
+### Kas yra transakcija?
+Transakcija nurodo:
+  - kas siunčia lėšas (`sender`)
+  - kam siunčiamos lėšos (`receiver`)
+  - kiek monetų siunčiama (`amount`)
+  - iš kur pasiimamos lėšos (UTXO input'ai)
+  - į kokius naujus UTXO jos išskaidomos (output'ai)
+
+Trumpai — tai **nuosavybės perleidimo instrukcija**.
+
+#### TX generavimas:
+Programa automatiškai sukuria `N` transakcijų:
+  - Pasirenkamas atsitiktinis siuntėjas (su likučiu)
+  - Pasirenkamas atsitiktinis gavėjas
+  - Parenkama atsitiktinė suma (pvz. 1–100 monetų)
+  - Surenkami siuntėjo UTXO padengti sumai
+  - Sukuriami išėjimai: gavėjui + grąža siuntėjui
+  - Apskaičiuojamas transakcijos ID (hash)
+
+#### Schema:
+```bash
+Inputs (UTXO) ----> Transaction ----> New Outputs (UTXO)
+```
 
 ---
 
-## 7. Genesis blokas
+## Transakcijos ID (TXID)
+
+Kad transakcijos būtų unikalios ir neklastojamos, joms sugeneruojamas hash:
+```
+TXID = HASH( inputs + outputs + amount + nonce + timestamp )
+```
+Naudojama mano **custom hash funkcija**.
+
+#### Kodėl reikia TXID?
+TX ID yra:
+  - transakcijos identifikatorius (kaip serijos numeris)
+  - nuoroda į UTXO input'us
+  - įrodymas, kad transakcija nebuvo pakeista
+
+TXID veikia kaip skaitmeninis **parašas ir štampas viename**.
+
+---
+
+## Mempool
+
+Sugeneruotos transakcijos **patenka į mempool** — laukiančių transakcijų eilę:
+```
+TxPool = { tx1, tx2, tx3, ... }
+```
+Mineris pasiima pirmas `block_size` transakcijų ir bando sudėti jas į bloką.
+
+#### Pseudokodas:
+```
+for i in range(N):
+    sender   = random user with UTXO
+    receiver = random different user
+    amount   = random(1..100)
+
+    inputs = pick UTXO that cover amount
+    outputs = {
+        receiver: amount,
+        sender: change_if_any
+    }
+
+    tx.tx_id = hash(inputs + outputs + timestamp)
+    mempool.push(tx)
+```
+
+---
+
+## Transakcijų mokesčiai (Fees)
+
+Kiekviena transakcija turi fiksuotą mokestį — `1 coin`
+  - Mokesčiai keliauja į miner coinbase reward'ą
+  - Tai imituoja tikrą Bitcoin fee sistemą
+
+--- 
+
+## 8. Mempool
 
 - `prev_hash = 64 nuliai`
 - `nonce = 0` (nekasamas)
@@ -225,15 +299,6 @@ Išvestis:
 ```
 [chain] genesis block created (height=0)
 ```
-
----
-
-## 8. Mempool
-
-Laikinas transakcijų sąrašas iki patvirtinimo bloke.
-
-```
-mempool: tx1, tx2, tx3 ...
 ```
 
 ---
