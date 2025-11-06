@@ -237,7 +237,7 @@ bool Blockchain::mine_next_block_v2(size_t block_size, size_t num_candidates, ui
 // -----------------------------------------------------------
 // Kasyba v0.2 (lygiagreciai, tikras multithread)
 // Kiekvienas kandidatas kasamas atskirame threade
-// Pirmas radęs sprendima laimi, kiti nutraukiami
+// Pirmas radęs laimi, kiti nutraukiami
 // -----------------------------------------------------------
 bool Blockchain::mine_next_block_v2_parallel(size_t block_size, size_t num_candidates, uint64_t max_ms) {
     if (mempool_.empty()) return false;

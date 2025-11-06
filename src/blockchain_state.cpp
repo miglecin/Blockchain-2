@@ -90,7 +90,7 @@ std::string Blockchain::calc_tx_id(const Transaction& t) const {
 // -----------------------------------------------------------
 void Blockchain::init_transactions(size_t n_txs) {
     mempool_.clear();
-    //jeigu nera user'ų - sukuriam
+    //jeigu nera user'u - sukuriam
     if (users_.empty() || utxo_set_.empty()) {
         std::cout << "[warn] users/utxo empty, calling init_users(1000)\n";
         init_users(1000);
@@ -232,7 +232,7 @@ bool Blockchain::apply_block_state(const Block& b) {
     return true;
 }
 // ------------------------------------------------------------
-// PERSKAIČIUOJAM BALANSUS iš UTXO
+// PERSKAICIUOJAM BALANSUS iš UTXO
 // ------------------------------------------------------------
 void Blockchain::recompute_balances() {
     balances_.clear();
