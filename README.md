@@ -132,7 +132,7 @@ Merkle Root Hash: 6657a9252aacd5c0b2940996ecff952228c3067cc38d4885efb5a4ac4247e9
 
 ---
 
-## Testo duomenų keitimas (3 užduotis)
+## Testo duomenų keitimas (4 užduotis)
 
 Pagal užduoties reikalavimus galima pakeisti pavyzdinius transakcijų hash’us į **realius Bitcoin transakcijų identifikatorius (txid)** iš pasirinkto bloko.
 Tam galima naudoti bet kurį **blockchain explorer**, pvz. https://www.blockchain.com/explorer
@@ -161,3 +161,30 @@ sutampa su Merkle Root, rodomu Blockchain.com (`8fb300e3fdb6f30a4c67233b997f99fd
 Skirtumas atsiranda dėl **baitų eiliškumo (endianness)** — libbitcoin biblioteka išveda hash’ą mažosios eiliškos tvarkos *(little-endian)* formatu,
 o block explorer jį rodo didžiosios eiliškos tvarkos *(big-endian)* formatu.
 Tai yra normalu ir atitinka Bitcoin Core specifikaciją, todėl galima laikyti, kad programos **rezultatas visiškai teisingas**.
+
+---
+
+## `create_merkle()` integracija į mano kodą
+
+Funkcija `create_merkle()` (arba `Blockchain::merkle_root()` mano implementacijoje) buvo integruota į blockchain projekto struktūrą, kad būtų galima apskaičiuoti **Merkle Root** iš visų bloko transakcijų ID.
+
+Šis metodas kviečiamas bloko formavimo metu, funkcijoje `build_candidate_from_front()`, kai sukuriamas naujas bloko kandidatas:
+```bash
+// 4) Apskaičiuojamas Merkle root iš transakcijų sąrašo
+std::vector<std::string> ids;
+for (auto& t : c.txs)
+    ids.push_back(t.tx_id);
+
+c.header.txs_hash = merkle_root(std::move(ids));
+```
+
+Funkcijos logika:
+  - Paimami visų transakcijų hash’ai (tx_id);
+  - Jei jų skaičius nelyginis, paskutinysis dubliuojamas;
+  - Poros sujungiamos ir hashinamos kartu (rekursyviai), kol lieka vienas hash;
+  - Gautas galutinis hash — tai Merkle Root, įrašomas į bloko header’į.
+
+Ši realizacija leidžia patikimai patikrinti visų bloko transakcijų vientisumą, nes pakeitus bent vieną `tx`, pasikeičia ir Merkle Root.
+
+#### Papildoma pastaba:
+Merkle Root skaičiavimas atliekamas naudojant mano paties `HashAdapter` klasę, o alternatyvi versija — `merkle.cpp` faile — naudoja `libbitcoin` bibliotekos funkcijas (encode_hash, bitcoin_hash, ir t.t.), kad parodytų, jog rezultatai sutampa su tikruoju „Bitcoin Core“ algoritmu.
