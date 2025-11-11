@@ -1,6 +1,9 @@
 #include "blockchain.h"
 #include "hash_adapter.h"
 #include "utils.h"
+
+#include <bitcoin/system.hpp>
+
 #include <iostream>
 #include <vector>
 #include <chrono>
@@ -8,23 +11,81 @@
 #include <atomic>
 #include <mutex>
 
+namespace bc = libbitcoin;
+
 // -----------------------------------------------------------
-//Merkle root: sujungiam visus tx hash i 1 "bloko pirsto atspauda"
-//Jei nelyginis skaicius - dubliuojam paskutini ir t.t.
+// Libbitcoin pagrindu realizuota create_merkle() funkcija
 // -----------------------------------------------------------
-std::string Blockchain::merkle_root(std::vector<std::string> ids) const {
-    if (ids.empty()) return HashAdapter::hash_string("");
-    while (ids.size() > 1) {
-        if (ids.size() & 1) ids.push_back(ids.back());//jei nelyginis skaicius - dubliuojam
-        std::vector<std::string> next;
-        next.reserve(ids.size() / 2);
-        for (size_t i = 0; i < ids.size(); i += 2) {
-            // hash(hashA + hashB)
-            next.push_back(HashAdapter::hash_string(ids[i] + ids[i + 1]));
+static bc::hash_digest create_merkle(bc::hash_list merkle)
+{
+    // Jei sąrašas tuščias, grąžiname null_hash.
+    if (merkle.empty())
+        return bc::null_hash;
+
+    // Jei tik vienas elementas - tai jau yra Merkle Root.
+    if (merkle.size() == 1)
+        return merkle[0];
+
+    // Kol lieka daugiau nei vienas hash'as, konstruojame naują lygį.
+    while (merkle.size() > 1)
+    {
+        // Jei nelyginis skaičius, dubliuojame paskutinį elementą.
+        if (merkle.size() % 2 != 0)
+            merkle.push_back(merkle.back());
+
+        bc::hash_list new_merkle;
+        new_merkle.reserve(merkle.size() / 2);
+
+        for (auto it = merkle.begin(); it != merkle.end(); it += 2)
+        {
+            // Sujungiame du hash'us ir užhashuojame juos pagal Bitcoin taisykles.
+            bc::data_chunk concat_data(bc::hash_size * 2);
+            bc::serializer<bc::data_chunk::iterator> concat(concat_data.begin());
+            concat.write_hash(*it);
+            concat.write_hash(*(it + 1));
+
+            const bc::hash_digest new_root = bc::bitcoin_hash(concat_data);
+            new_merkle.push_back(new_root);
         }
-        ids.swap(next);
+
+        merkle = std::move(new_merkle);
     }
-    return ids[0]; // vienas galutinis hash
+
+    // Liko vienas elementas – Merkle Root.
+    return merkle[0];
+}
+// -----------------------------------------------------------
+// Merkle root: dabar naudoja libbitcoin create_merkle()
+// Gauna tx_id sąrašą (std::string) ir grąžina Merkle Root hex formatu.
+// -----------------------------------------------------------
+std::string Blockchain::merkle_root(std::vector<std::string> ids) const
+{
+    if (ids.empty())
+        return bc::encode_hash(bc::null_hash);
+
+    bc::hash_list merkle;
+    merkle.reserve(ids.size());
+
+    for (const auto& hex : ids)
+    {
+        bc::hash_digest h;
+
+        // Jei tai normalus 64 simbolių hex hash'as, dekoduojame tiesiai.
+        if (bc::decode_hash(h, hex))
+        {
+            merkle.push_back(h);
+        }
+        else
+        {
+            // Jei formatas kitoks (pvz., debug ar senas formatas),
+            // generuojame hash'ą iš turinio, kad funkcija vis tiek veiktų deterministiškai.
+            const auto data = bc::to_chunk(hex);
+            merkle.push_back(bc::bitcoin_hash(data));
+        }
+    }
+
+    const bc::hash_digest root = create_merkle(std::move(merkle));
+    return bc::encode_hash(root);
 }
 // -----------------------------------------------------------
 //Bloko header pavertimas i teksta ir hash
