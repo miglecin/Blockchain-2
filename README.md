@@ -141,12 +141,23 @@ Tam galima naudoti bet kurį **blockchain explorer**, pvz. https://www.blockchai
 2. Nukopijuoti kelis transakcijų hash’us (txid).
 3. Įkelti juos į merkle.cpp vietoje esamų pavyzdinių hash’ų.
 
-Pavyzdžiui:
+### Testas su realiu Bitcoin bloku #80000
+
+Naudotos transakcijos:
+- c06fbab289f723c6261d3030ddb6be121f7d2508d77862bb1e484f5cd7f92b25
+- 5a4ebf66822b0b2d56bd9dc64ece0bc38ee7844a23ff1d7320a88c5fdb2ad3e2
+
+Gautas rezultatas:
+```bash
+Tarpinis Merkle hash sąrašas:
+  190760b278fe7b8565fda3b968b918d5fd997f993b23674c0af3b6fde300b38f
+
+Merkle Root Hash: 190760b278fe7b8565fda3b968b918d5fd997f993b23674c0af3b6fde300b38f
 ```
-std::vector<bc::hash_digest> tx_hashes = {
-    bc::hash_literal("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"),
-    bc::hash_literal("b2f5ff47436671b6e533d8dc3614845d5b6a5c3b9a5b56b8a8a2e1b4d5f3bba3"),
-    bc::hash_literal("c7be1ed902fb3d6c36c1e60ffb3a3aa7bcb76e54d2cb3f8c2a8d7e3b5b8aab09"),
-    bc::hash_literal("88e6c3bdfbb3af3c8a81e73b14a9a0f0bfc54d5e26d4221a53ff32b6ab3f9e8f")
-};
-```
+#### Paaiškinimas:
+Kadangi blokas #80000 turi tik **2 transakcijas**, jų Merkle medis susideda iš vieno lygio, o tarpinių hash’ų nėra daugiau.
+Galutinis rezultatas (`190760b278fe7b8565fda3b968b918d5fd997f993b23674c0af3b6fde300b38f`)
+sutampa su Merkle Root, rodomu Blockchain.com (`8fb300e3fdb6f30a4c67233b997f99fdd518b968b9a3fd65857bfe78b2600719`)
+Skirtumas atsiranda dėl **baitų eiliškumo (endianness)** — libbitcoin biblioteka išveda hash’ą mažosios eiliškos tvarkos *(little-endian)* formatu,
+o block explorer jį rodo didžiosios eiliškos tvarkos *(big-endian)* formatu.
+Tai yra normalu ir atitinka Bitcoin Core specifikaciją, todėl galima laikyti, kad programos **rezultatas visiškai teisingas**.
