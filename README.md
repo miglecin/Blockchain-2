@@ -13,7 +13,7 @@ Darbo metu buvo įgyvendintas praktinis pavyzdys – Merkle Root hash’o skaič
 
 ---
 
-## 1. Aplinkos paruošimas
+## 1. Aplinkos paruošimas (1.1 užduotis)
 
 Pradžioje bandyta kompiliuoti `libbitcoin-system` tiesiogiai macOS aplinkoje, tačiau kilo keli nesklandumai:
 
@@ -100,7 +100,7 @@ g++ -std=c++17 merkle.cpp -o merkle -lbitcoin-system
 
 ---
 
-## 6. Paleidimas ir rezultatas
+## 6. Paleidimas ir rezultatas (1.3 užduotis)
 
 Programos vykdymas:
 ```bash
@@ -132,7 +132,7 @@ Merkle Root Hash: 6657a9252aacd5c0b2940996ecff952228c3067cc38d4885efb5a4ac4247e9
 
 ---
 
-## Testo duomenų keitimas (4 užduotis)
+## Testo duomenų keitimas (1.4 užduotis)
 
 Pagal užduoties reikalavimus galima pakeisti pavyzdinius transakcijų hash’us į **realius Bitcoin transakcijų identifikatorius (txid)** iš pasirinkto bloko.
 Tam galima naudoti bet kurį **blockchain explorer**, pvz. https://www.blockchain.com/explorer
@@ -164,7 +164,7 @@ Tai yra normalu ir atitinka Bitcoin Core specifikaciją, todėl galima laikyti, 
 
 ---
 
-## `create_merkle()` integracija į mano kodą
+## `create_merkle()` integracija į mano kodą (1.5 užduotis)
 
 Funkcija `create_merkle()` (arba `Blockchain::merkle_root()` mano implementacijoje) buvo integruota į blockchain projekto struktūrą, kad būtų galima apskaičiuoti **Merkle Root** iš visų bloko transakcijų ID.
 
@@ -188,3 +188,183 @@ Funkcijos logika:
 
 #### Papildoma pastaba:
 Merkle Root skaičiavimas atliekamas naudojant mano paties `HashAdapter` klasę, o alternatyvi versija — `merkle.cpp` faile — naudoja `libbitcoin` bibliotekos funkcijas (encode_hash, bitcoin_hash, ir t.t.), kad parodytų, jog rezultatai sutampa su tikruoju „Bitcoin Core“ algoritmu.
+
+# Bitcoin Core mazgas Oracle Cloud (Ubuntu 22.04)
+
+##  Apžvalga
+Sukurtas ir paleistas **Bitcoin Core mazgas** Oracle Cloud nemokamoje „Always Free Tier“ aplinkoje, naudojant **Ubuntu 22.04** operacinę sistemą.  
+Naudotas „pruned“ režimas, kad mazgas tilptų į ribotą disko vietą (46 GB).
+
+---
+
+##  1. Oracle Cloud konfigūracija
+
+### **VM parametrai**
+| Parametras | Reikšmė |
+|-------------|----------|
+| Shape | `VM.Standard.E2.1.Micro` |
+| CPU / RAM | 1 OCPU / 1 GB RAM |
+| Diskas | 47 GB (boot volume) |
+| Regionas | Sweden Central (Stockholm) |
+| OS | Ubuntu 22.04 LTS |
+| Viešas IP | `129.151.216.27` |
+
+### **Tinklo konfigūracija**
+- Sukurtas **VNIC**: `bitcoin_node`
+- Priskirtas prie `subnet-20251111-1336`
+- Viešas IP priskirtas automatiškai
+- **Security List taisyklės**:
+  | Source | Protocol | Port | Aprašymas |
+  |---------|-----------|------|------------|
+  | `0.0.0.0/0` | TCP | 22 | SSH prisijungimui |
+  | `0.0.0.0/0` | TCP | 8333 | Bitcoin P2P jungtims |
+  | `0.0.0.0/0` | ICMP | - | Ping / testavimui |
+
+---
+
+##  2. SSH prisijungimas
+
+SSH raktai sugeneruoti Oracle Cloud kūrimo metu:
+
+```bash
+chmod 600 ssh-key-2025-11-11.key
+ssh -i ssh-key-2025-11-11.key ubuntu@129.151.216.27
+```
+
+---
+
+##  3. Sistemos paruošimas
+
+```bash
+sudo apt update && sudo apt upgrade -y
+sudo apt install wget -y
+```
+
+---
+
+##  4. Bitcoin Core diegimas
+
+```bash
+cd ~
+wget https://bitcoincore.org/bin/bitcoin-core-30.0/bitcoin-30.0-x86_64-linux-gnu.tar.gz
+tar -xzf bitcoin-30.0-x86_64-linux-gnu.tar.gz
+sudo cp bitcoin-30.0/bin/{bitcoind,bitcoin-cli} /usr/local/bin/
+bitcoind -version
+```
+
+**Rezultatas:**
+```
+Bitcoin Core version v30.0
+```
+
+---
+
+##  5. Konfigūracija
+
+Failas: `~/.bitcoin/bitcoin.conf`
+
+```ini
+server=1
+daemon=1
+listen=1
+prune=5000
+dbcache=50
+maxconnections=10
+rpcuser=student
+rpcpassword=labai_saugus_slaptazodis
+rpcallowip=127.0.0.1
+```
+
+---
+
+##  6. Paleidimas
+
+```bash
+bitcoind -daemon
+bitcoin-cli getblockchaininfo
+```
+
+Mazgas pradeda sinchronizaciją su Bitcoin tinklu.
+
+---
+
+##  7. Ugniesienės (firewall) taisyklės
+
+**Linux (UFW):**
+```bash
+sudo ufw allow 8333/tcp
+sudo ufw reload
+```
+
+**Oracle Security List:**
+- TCP port `8333` atidarytas viešiems ryšiams.
+
+---
+
+##  8. Tinklo informacija
+
+```bash
+bitcoin-cli getnetworkinfo
+```
+
+**Reali išvestis:**
+```json
+{
+  "version": 300000,
+  "subversion": "/Satoshi:30.0.0/",
+  "protocolversion": 70016,
+  "networkactive": true,
+  "connections": 10,
+  "connections_in": 0,
+  "connections_out": 10,
+  "localservicesnames": [
+    "WITNESS",
+    "NETWORK_LIMITED",
+    "P2P_V2"
+  ]
+}
+```
+
+Tinklas aktyvus, yra 10 išėjimo jungčių, mazgas pilnai veikia.
+
+---
+
+##  9. Blokų grandinės informacija
+
+```bash
+bitcoin-cli getblockchaininfo
+```
+
+**Reali išvestis (sinchronizacijos metu):**
+```json
+{
+  "chain": "main",
+  "blocks": 170348,
+  "headers": 923155,
+  "verificationprogress": 0.002,
+  "initialblockdownload": true,
+  "pruned": true,
+  "prune_target_size": 5242880000
+}
+```
+
+Mazgas sinchronizuojasi su Bitcoin tinklu, „pruned“ režimu (maks. 5 GB).  
+
+---
+
+##  10. Papildoma informacija
+
+- Tinklo prievadas `8333` atidarytas viešai.
+- Node pasiekiamas per: **https://bitnodes.io → Check Node → 129.151.216.27**
+- Po kelių valandų (kai `initialblockdownload = false`) node bus pilnai sinchronizuotas ir matomas tinkle.
+
+---
+
+##  Rezultatas
+
+- Bitcoin Core mazgas sėkmingai paleistas Oracle Cloud VM aplinkoje.  
+- Veikia kaip „pruned full node“.  
+- Bendrauja su Bitcoin tinklu (10+ jungčių).  
+- Naudoja mažiau nei 5 GB disko vietos, tinka „Always Free Tier“ VM.
+
+---
