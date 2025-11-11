@@ -296,6 +296,8 @@ sudo ufw allow 8333/tcp
 sudo ufw reload
 ```
 
+![firewall](screenshots/firewall.png)
+
 **Oracle Security List:**
 - TCP port `8333` atidarytas viešiems ryšiams.
 
@@ -324,6 +326,7 @@ bitcoin-cli getnetworkinfo
   ]
 }
 ```
+![network](screenshots/tinklo_info.png)
 
 Tinklas aktyvus, yra 10 išėjimo jungčių, mazgas pilnai veikia.
 
@@ -347,6 +350,7 @@ bitcoin-cli getblockchaininfo
   "prune_target_size": 5242880000
 }
 ```
+![block](screenshots/bloko_info.png)
 
 Mazgas sinchronizuojasi su Bitcoin tinklu, „pruned“ režimu (maks. 5 GB).  
 
