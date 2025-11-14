@@ -344,3 +344,113 @@ bitcoin-cli getblockchaininfo
 - Naudoja mažiau nei 5 GB disko vietos, tinka „Always Free Tier“ VM.
 
 ---
+
+# 3 dalis – Bitcoin tinklo analizė su `python-bitcoinlib`
+
+Šioje dalyje buvo atlikti trys pagrindiniai darbai:
+
+1. Prisijungimas prie Bitcoin Core nodo per RPC.
+2. Transakcijos analizė ir mokesčio apskaičiavimas.
+3. Bloko header’io hash'o patikrinimas pagal Bitcoin block hashing algorithm.
+
+---
+
+## 1. Ryšio su Bitcoin Core patikrinimas
+
+Paleistas failas `rpc_example.py`:
+
+```python
+from bitcoin.rpc import RawProxy
+
+p = RawProxy()
+info = p.getblockchaininfo()
+print(info['blocks'])
+```
+
+**Rezultatas:**
+
+```
+923601
+```
+
+Tai patvirtina, kad RPC ryšys veikia ir python-bitcoinlib sėkmingai jungiasi prie Bitcoin Core.
+
+---
+
+## 2. Transakcijos analizė (pateikti pavyzdžiai)
+
+### a) `rpc_transaction.py`
+
+Rezultatas:
+
+```
+1GdK9UzpHBzqzX2A9JFP3Di4weBwqgmoQA 0.01500000
+1Cdid9KFAaatwczBwBttQcwXYCpvK8h7FK 0.08450000
+```
+
+### b) `rpc_block.py`
+
+Rezultatas:
+
+```
+Total output value (in BTC) in block #277316: 10322.07722534
+```
+
+Pavyzdiniai skriptai veikia korektiškai.
+
+---
+
+## 3. Transakcijos mokesčio apskaičiavimas
+
+Transakcija:
+
+**4410c8d14ff9f87ceeed1d65cb58e7c7b2422b2d7529afc675208ce2ce09ed7d**
+
+Skriptas `tx_fee.py` apskaičiavo:
+
+```
+Inputs suma    : 94504.10000000 BTC
+Outputs suma   : 94504.03465148 BTC
+Transakcijos mokestis: 0.06534852 BTC
+```
+
+### Išvada
+
+**Transakcijos mokestis: 0.06534852 BTC**
+
+---
+
+## 4. Bloko hash’o patikrinimas pagal block hashing algorithm
+
+Tikrinamas blokas: **#100000**
+
+Skriptas `block_hash_check.py` apskaičiavo hash’ą rankiniu būdu pagal:
+- Version  
+- Previous block hash  
+- Merkle root  
+- Time  
+- Bits  
+- Nonce  
+
+Visi laukai sujungti kaip **little-endian**, tada atliktas **double SHA-256**.
+
+**Rezultatas:**
+
+```
+Hash iš nodo     : 000000000003ba27aa200b1cecaad478d2b00432346c3f1c...
+Apskaičiuotas    : 000000000003ba27aa200b1cecaad478d2b00432346c3f1c...
+Ar sutampa?      : True
+```
+
+### Išvada
+
+Bloko hash’as apskaičiuotas teisingai ir sutampa su Bitcoin Core nodo pateiktu hash’u.
+
+---
+
+## Galutinė išvada
+
+- RPC ryšys su Bitcoin Core veikia.
+- Visi pateikti pavyzdiniai skriptai atliko savo funkcijas.
+- Transakcijos mokestis apskaičiuotas teisingai.
+- Bloko hash’o skaičiavimas rankiniu būdu sutampa su nodo rezultatu.
