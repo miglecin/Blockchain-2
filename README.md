@@ -325,7 +325,10 @@ bitcoin-cli getblockchaininfo
 **Reali išvestis (sinchronizacijos metu):**
 ![block](screenshots/blokas.png)
 
-<div style="width: 50%;">
+<details>
+<summary><strong>Blockchain info (spustelėk kad išskleisti)</strong></summary>
+
+<sub>
 | Laukas                   | Reikšmė                                                            | Paaiškinimas                                                            |
 | ------------------------ | ------------------------------------------------------------------ | ----------------------------------------------------------------------- |
 | **chain**                | `main`                                                             | Node prijungtas prie pagrindinio Bitcoin tinklo.                        |
@@ -340,7 +343,9 @@ bitcoin-cli getblockchaininfo
 | **prune_target_size**    | `5242880000` (5 GB)                                                | Maksimalus pruned duomenų dydis.                                        |
 | **initialblockdownload** | `true`                                                             | Node vis dar IBD režime — normalu.                                      |
 
-</div>
+</sub>
+
+</details>
 ---
 
 ##  10. Papildoma informacija
