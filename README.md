@@ -310,9 +310,9 @@ bitcoin-cli getnetworkinfo
 ```
 
 **Reali išvestis:**
-![network](screenshots/tinklo_infoo.png)
+![network](screenshots/network.png)
 
-Tinklas aktyvus, yra 10 išėjimo jungčių, mazgas pilnai veikia.
+![lentele](screenshots/lentele1.png)
 
 ---
 
