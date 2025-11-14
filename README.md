@@ -310,23 +310,7 @@ bitcoin-cli getnetworkinfo
 ```
 
 **Reali išvestis:**
-```json
-{
-  "version": 300000,
-  "subversion": "/Satoshi:30.0.0/",
-  "protocolversion": 70016,
-  "networkactive": true,
-  "connections": 10,
-  "connections_in": 0,
-  "connections_out": 10,
-  "localservicesnames": [
-    "WITNESS",
-    "NETWORK_LIMITED",
-    "P2P_V2"
-  ]
-}
-```
-![network](screenshots/tinklo_info.png)
+![network](screenshots/tinklo_infoo.png)
 
 Tinklas aktyvus, yra 10 išėjimo jungčių, mazgas pilnai veikia.
 
@@ -339,20 +323,21 @@ bitcoin-cli getblockchaininfo
 ```
 
 **Reali išvestis (sinchronizacijos metu):**
-```json
-{
-  "chain": "main",
-  "blocks": 170348,
-  "headers": 923155,
-  "verificationprogress": 0.002,
-  "initialblockdownload": true,
-  "pruned": true,
-  "prune_target_size": 5242880000
-}
-```
-![block](screenshots/bloko_info.png)
+![block](screenshots/blokas.png)
 
-Mazgas sinchronizuojasi su Bitcoin tinklu, „pruned“ režimu (maks. 5 GB).  
+| Laukas                   | Reikšmė                                                            | Paaiškinimas                                                            |
+| ------------------------ | ------------------------------------------------------------------ | ----------------------------------------------------------------------- |
+| **chain**                | `main`                                                             | Node prijungtas prie pagrindinio Bitcoin tinklo.                        |
+| **blocks**               | `196381`                                                           | Tiek blokų mano node jau atsisiuntė.                                    |
+| **headers**              | `923593`                                                           | Tiek blokų iš viso yra Bitcoin tinkle. Node dar sinchronizuojasi.       |
+| **verificationprogress** | `0.0051463`                                                        | Apie **0.51%** sinchronizacijos.                                        |
+| **bestblockhash**        | `0000000000000365636358a6cb56e90f079b4b4f2ccd7e0991dfd8ac3df0b8ba` | Naujausias blokas mano node.                                            |
+| **difficulty**           | `2440642.6069`                                                     | Sudėtingumo lygis ties mano sinchronizuota grandinės vieta.             |
+| **time**                 | `1346320769`                                                       | Naujausio mano bloko laikas (2012 m., nes esu anksti grandinėje).       |
+| **size_on_disk**         | `3203784264` (~3.2 GB)                                             | Kiek vietos užima pruned blockchain duomenys.                           |
+| **pruned**               | `true`                                                             | Node veikia **pruned mode**, todėl išsaugo tik reikalingiausius blokus. |
+| **prune_target_size**    | `5242880000` (5 GB)                                                | Maksimalus pruned duomenų dydis.                                        |
+| **initialblockdownload** | `true`                                                             | Node vis dar IBD režime — normalu.                                      |
 
 ---
 
