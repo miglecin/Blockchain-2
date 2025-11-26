@@ -187,13 +187,15 @@ Funkcijos logika:
 Ši realizacija leidžia patikimai patikrinti visų bloko transakcijų vientisumą, nes pakeitus bent vieną `tx`, pasikeičia ir Merkle Root.
 
 #### Papildoma pastaba:
-Merkle Root skaičiavimas atliekamas naudojant mano paties `HashAdapter` klasę, o alternatyvi versija — `merkle.cpp` faile — naudoja `libbitcoin` bibliotekos funkcijas (encode_hash, bitcoin_hash, ir t.t.), kad parodytų, jog rezultatai sutampa su tikruoju „Bitcoin Core“ algoritmu.
+Merkle Root skaičiavimas atliekamas naudojant mano pačios `HashAdapter` klasę, o alternatyvi versija — `merkle.cpp` faile — naudoja `libbitcoin` bibliotekos funkcijas (encode_hash, bitcoin_hash, ir t.t.), kad parodytų, jog rezultatai sutampa su tikruoju „Bitcoin Core“ algoritmu.
 
 # Bitcoin Core mazgas Oracle Cloud (Ubuntu 22.04)
 
 ##  Apžvalga
-Sukurtas ir paleistas **Bitcoin Core mazgas** Oracle Cloud nemokamoje „Always Free Tier“ aplinkoje, naudojant **Ubuntu 22.04** operacinę sistemą.  
-Naudotas „pruned“ režimas, kad mazgas tilptų į ribotą disko vietą (46 GB).
+Pastaba: Node diegimo ir konfigūravimo procesą atlikau pilnai, tačiau dėl ribotų resursų (diskas / sinchronizacijos trukmė) mazgas nepasiekė pilnos sinchronizacijos. Vis dėlto visi reikalingi diegimo žingsniai, konfigūracija ir aplinka yra paruošti teisingai.
+
+Sukurtas **Bitcoin Core mazgas** Oracle Cloud nemokamoje „Always Free Tier“ aplinkoje, naudojant **Ubuntu 22.04** operacinę sistemą.  
+Bandžiau naudoti „pruned“ režimas (***pilnas node, kuriam ištrinta sena blockchain istorija, kad užimtų mažiau vietos. Išsaugo tik paskutinius N megabaitų blokų, reikalingus tinkamam veikimui.***), kad mazgas tilptų į ribotą disko vietą (46 GB).
 
 ---
 
@@ -331,17 +333,15 @@ bitcoin-cli getblockchaininfo
 ##  10. Papildoma informacija
 
 - Tinklo prievadas `8333` atidarytas viešai.
-- Node pasiekiamas per: **https://bitnodes.io → Check Node → 129.151.216.27**
-- Po kelių valandų (kai `initialblockdownload = false`) node bus pilnai sinchronizuotas ir matomas tinkle.
-
+- Sinchronizacija buvo pradėta, tačiau dėl ribotų resursų (didelė IBD trukmė ir pruned režimas) mazgas nespėjo pilnai pasiekti initialblockdownload = false būsenos per darbo laiką.
 ---
 
 ##  Rezultatas
 
-- Bitcoin Core mazgas sėkmingai paleistas Oracle Cloud VM aplinkoje.  
-- Veikia kaip „pruned full node“.  
-- Bendrauja su Bitcoin tinklu (10+ jungčių).  
-- Naudoja mažiau nei 5 GB disko vietos, tinka „Always Free Tier“ VM.
+- Bitcoin Core mazgas sėkmingai paleistas Oracle Cloud VM aplinkoje kaip pruned node. 
+- Visi diegimo ir konfigūravimo žingsniai atlikti teisingai (bitcoin.conf, RPC nustatymai, ugniesienė, paslaugos paleidimas).
+- Mazgas pradėjo bendrauti su Bitcoin tinklu (užmezgė jungčių), tačiau dėl riboto disko ir ilgos sinchronizacijos nepasiekė pilnos IBD pabaigos.
+- Diegimo aplinka tinkama „Always Free Tier“ VM, tačiau nepakanka resursų pilnai sinchronizacijai.
 
 ---
 
